@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <!-- PWA & 画面最適化 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="立地メモ">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/854/854878.png"> <!-- ダミーアイコン -->
+  <title>店舗立地メモ</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- unpkgからcdnjsへ変更 (プレビュー環境での安定動作のため) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+  <style>
+    :root {
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+      background-color: #f4f4f5; /* zinc-100 */
+      color: #334155; /* slate-700 */
+      overscroll-behavior-y: none;
+    }
+    .env-safe-top { padding-top: var(--safe-top); }
+    .pb-safe { padding-bottom: calc(var(--safe-bottom) + 80px); /* 80px for bottom nav */ }
+    
+    /* マップの高さ設定 (flex-1との競合を避けるため絶対値で確保) */
+    #map { 
+      height: calc(100vh - var(--safe-top) - 180px); 
+      z-index: 10; 
+      width: 100%;
+    }
+    
+    /* ポップアップのカスタマイズ（Leafletの標準スタイルを上書き） */
+    .leaflet-popup-content-wrapper {
+      border-radius: 12px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+      padding: 0;
+    }
+    .leaflet-popup-content {
+      margin: 14px;
+      min-width: 240px;
+    }
+    .leaflet-container a.leaflet-popup-close-button {
+      color: #94a3b8;
+      padding: 6px;
+    }
+    .leaflet-container a.leaflet-popup-close-button:hover {
+      color: #475569;
+    }
+    .custom-div-icon {
+      background: transparent;
+      border: none;
+    }
+  </style>
+</head>
+<body class="h-screen w-full flex flex-col overflow-hidden">
+
+  <header class="bg-slate-800 text-white shadow-md z-20 relative env-safe-top">
+    <div class="flex justify-between items-center px-4 py-3">
+      <h1 class="text-lg font-bold tracking-wider"><i class="fa-solid fa-map-location-dot mr-2"></i>立地メモ</h1>
+      <button onclick="window.locateMe()" class="text-slate-200 hover:text-white transition p-2">
+        <i class="fa-solid fa-location-crosshairs text-xl"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="flex-1 relative overflow-hidden flex flex-col">
+    <!-- マップ画面 -->
+    <div id="view-map" class="absolute inset-0 flex flex-col z-10 transition-opacity duration-300">
+      <div id="map"></div>
+      
+      <!-- 現在位置情報パネル -->
+      <div class="bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] rounded-t-2xl z-20 px-5 pt-4 pb-24 absolute bottom-0 w-full h-[180px]">
+        <div class="text-xs text-slate-400 font-bold mb-1">新規登録ピンの位置</div>
+        <div class="flex items-start mb-3 h-[48px]">
+          <i class="fa-solid fa-location-dot text-slate-800 mt-1 mr-2 text-lg"></i>
+          <p id="current-address" class="text-slate-800 font-medium text-sm leading-snug line-clamp-2 transition-opacity">
+            地図をタップするか現在地を取得してください
+          </p>
+          <div id="loading-address" class="hidden ml-2 mt-1 w-4 h-4 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin"></div>
+        </div>
+        <button onclick="window.openFormModal()" class="w-full py-3.5 bg-slate-800 text-white font-bold rounded-xl shadow-lg shadow-slate-800/30 active:scale-95 transition-transform flex justify-center items-center text-sm">
+          <i class="fa-solid fa-pen-to-square mr-2"></i>この位置を新規登録
+        </button>
+      </div>
+    </div>
+
+    <!-- リスト画面 -->
+    <div id="view-list" class="absolute inset-0 bg-zinc-50 z-0 opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto pb-safe">
+      <div class="p-4">
+        <div class="flex justify-between items-center mb-4 mt-2">
+          <h2 class="text-lg font-bold text-slate-800">登録済み物件</h2>
+          <span id="list-count" class="text-xs font-bold bg-slate-200 text-slate-600 px-2 py-1 rounded-full">0件</span>
+        </div>
+        <div id="property-list" class="space-y-3">
+          <!-- リストアイテムがここに入ります -->
+        </div>
+      </div>
+    </div>
+
+    <!-- バックアップ画面 -->
+    <div id="view-backup" class="absolute inset-0 bg-zinc-50 z-0 opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto pb-safe">
+      <div class="p-4 mt-2">
+        <h2 class="text-lg font-bold text-slate-800 mb-4">データ管理</h2>
+        
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-zinc-200 mb-4">
+          <h3 class="text-sm font-bold text-slate-800 mb-3"><i class="fa-solid fa-download text-slate-500 mr-2"></i>エクスポート (保存)</h3>
+          <p class="text-xs text-slate-500 mb-4 leading-relaxed">
+            登録したデータをiPhoneの「ファイル」アプリなどに保存します。バックアップとして定期的に保存することをおすすめします。
+          </p>
+          <div class="space-y-2">
+            <button onclick="window.exportData('json')" class="w-full py-3 bg-slate-100 text-slate-800 font-bold rounded-xl text-sm flex items-center justify-center border border-slate-200 active:bg-slate-200">
+              <i class="fa-solid fa-file-code mr-2"></i>JSON形式で保存（復元用）
+            </button>
+            <button onclick="window.exportData('csv')" class="w-full py-3 bg-slate-100 text-slate-800 font-bold rounded-xl text-sm flex items-center justify-center border border-slate-200 active:bg-slate-200">
+              <i class="fa-solid fa-file-csv mr-2"></i>CSV形式で保存（Excel用）
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-zinc-200">
+          <h3 class="text-sm font-bold text-slate-800 mb-3"><i class="fa-solid fa-upload text-slate-500 mr-2"></i>インポート (復元)</h3>
+          <p class="text-xs text-slate-500 mb-4 leading-relaxed">
+            保存したJSONファイルからデータを復元します。<br>※現在のデータは上書きされずに追加されます。
+          </p>
+          <label class="w-full py-3 bg-slate-800 text-white font-bold rounded-xl text-sm flex items-center justify-center shadow-md active:scale-95 transition-transform cursor-pointer">
+            <i class="fa-solid fa-folder-open mr-2"></i>ファイルを選択
+            <input type="file" accept=".json" class="hidden" onchange="window.importData(event)">
+          </label>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <nav class="bg-white border-t border-zinc-200 fixed bottom-0 w-full z-30 pb-[env(safe-area-inset-bottom,0px)]">
+    <div class="flex justify-around items-center h-16">
+      <button onclick="window.switchTab('map')" id="tab-map" class="tab-btn flex-1 flex flex-col items-center justify-center text-slate-800 transition-colors">
+        <i class="fa-solid fa-map text-xl mb-1"></i>
+        <span class="text-[10px] font-bold mt-1">マップ</span>
+      </button>
+      <button onclick="window.switchTab('list')" id="tab-list" class="tab-btn flex-1 flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
+        <i class="fa-solid fa-list text-xl mb-1"></i>
+        <span class="text-[10px] font-bold mt-1">リスト</span>
+      </button>
+      <button onclick="window.switchTab('backup')" id="tab-backup" class="tab-btn flex-1 flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
+        <i class="fa-solid fa-cloud-arrow-down text-xl mb-1"></i>
+        <span class="text-[10px] font-bold mt-1">バックアップ</span>
+      </button>
+    </div>
+  </nav>
+
+  <div id="form-modal" class="fixed inset-0 bg-slate-900/60 z-50 hidden opacity-0 transition-opacity duration-300 flex items-end justify-center sm:items-center">
+    <div class="bg-white w-full sm:w-[400px] h-[85vh] sm:h-auto sm:max-h-[90vh] rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl transform translate-y-full sm:translate-y-0 transition-transform duration-300" id="form-content">
+      
+      <div class="flex justify-between items-center p-4 border-b border-zinc-100">
+        <h3 class="text-lg font-bold text-slate-800" id="modal-title">物件を登録</h3>
+        <button onclick="window.closeFormModal()" class="w-8 h-8 bg-zinc-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-zinc-200 transition-colors">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      
+      <div class="p-5 overflow-y-auto flex-1 space-y-5">
+        <input type="hidden" id="form-id">
+        
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1.5">物件名 / 施設名 <span class="text-red-500">*</span></label>
+          <input type="text" id="form-name" placeholder="例: 〇〇交差点角地" class="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800 focus:border-transparent transition-shadow">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1.5">物件種別</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" class="type-btn border border-zinc-200 bg-white text-slate-600 rounded-xl py-2.5 text-xs font-bold transition-all data-[selected=true]:border-slate-800 data-[selected=true]:bg-slate-800 data-[selected=true]:text-white" data-value="ロードサイド物件" onclick="window.selectType(this)">ロードサイド物件</button>
+            <button type="button" class="type-btn border border-zinc-200 bg-white text-slate-600 rounded-xl py-2.5 text-xs font-bold transition-all data-[selected=true]:border-slate-800 data-[selected=true]:bg-slate-800 data-[selected=true]:text-white" data-value="ビルイン物件" onclick="window.selectType(this)">ビルイン物件</button>
+            <button type="button" class="type-btn border border-zinc-200 bg-white text-slate-600 rounded-xl py-2.5 text-xs font-bold transition-all data-[selected=true]:border-slate-800 data-[selected=true]:bg-slate-800 data-[selected=true]:text-white" data-value="地権者" onclick="window.selectType(this)">地権者</button>
+            <button type="button" class="type-btn border border-zinc-200 bg-white text-slate-600 rounded-xl py-2.5 text-xs font-bold transition-all data-[selected=true]:border-slate-800 data-[selected=true]:bg-slate-800 data-[selected=true]:text-white" data-value="その他" onclick="window.selectType(this)">その他</button>
+          </div>
+          <input type="hidden" id="form-type" value="ロードサイド物件">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1.5">住所 (自動取得/編集可)</label>
+          <textarea id="form-address" rows="2" class="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800 transition-shadow"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1.5">メモ (人通り、家賃目安など)</label>
+          <textarea id="form-memo" rows="3" placeholder="角地で視認性良好。坪単価..." class="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800 transition-shadow"></textarea>
+        </div>
+      </div>
+      
+      <div class="p-4 border-t border-zinc-100 bg-white pb-[env(safe-area-inset-bottom,16px)]">
+        <!-- IDを追加して確実に取得できるように修正 -->
+        <button id="save-submit-btn" onclick="window.saveProperty()" class="w-full py-3.5 bg-slate-800 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-transform flex justify-center items-center">
+          <i class="fa-solid fa-check mr-2"></i>保存する
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // XSS対策用エスケープ関数
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    // 状態管理
+    let map, marker;
+    let savedMarkersLayer; 
+    let currentLocation = { lat: 35.681236, lng: 139.767125, address: '現在地を取得中...' };
+    let properties = JSON.parse(localStorage.getItem('storeProperties') || '[]');
+    let currentTab = 'map';
+    let geocodeSeq = 0;
+    let geoTimer = null;
+
+    function initApp() {
+      if (map) return; // 二重初期化防止
+      initMap();
+      renderList();
+      
+      const firstTypeBtn = document.querySelector('.type-btn');
+      if (firstTypeBtn) {
+          firstTypeBtn.setAttribute('data-selected', 'true');
+      }
+
+      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+        console.warn('GPS機能（geolocation）はHTTPS環境でのみ動作します。');
+      }
+    }
+
+    // プレビュー環境等で既にDOMが読み込まれている場合にも確実に対応するための記述
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initApp);
+    } else {
+      initApp();
+    }
+
+    function initMap() {
+      map = L.map('map', { zoomControl: false }).setView([currentLocation.lat, currentLocation.lng], 15);
+      
+      // 国土地理院マップ
+      L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>"
+      }).addTo(map);
+
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+      savedMarkersLayer = L.layerGroup().addTo(map);
+
+      // ターゲットピン
+      const targetIcon = L.divIcon({
+        html: `<div class="w-9 h-9 bg-slate-800 rounded-full flex justify-center items-center shadow-xl border-[3px] border-white"><i class="fa-solid fa-crosshairs text-white text-sm"></i></div>`,
+        className: 'custom-div-icon',
+        iconSize: [36, 36],
+        iconAnchor: [18, 36]
+      });
+
+      marker = L.marker([currentLocation.lat, currentLocation.lng], {
+        icon: targetIcon,
+        draggable: true,
+        zIndexOffset: 1000 
+      }).addTo(map);
+
+      marker.on('dragend', function (e) {
+        const pos = marker.getLatLng();
+        updateCurrentLocation(pos.lat, pos.lng);
+      });
+
+      map.on('click', function (e) {
+        marker.setLatLng(e.latlng);
+        updateCurrentLocation(e.latlng.lat, e.latlng.lng);
+      });
+
+      renderMapMarkers();
+      locateMe();
+    }
+
+    function updateCurrentLocation(lat, lng) {
+      currentLocation.lat = lat;
+      currentLocation.lng = lng;
+      
+      clearTimeout(geoTimer);
+      geoTimer = setTimeout(() => reverseGeocode(lat, lng), 600);
+    }
+
+    async function reverseGeocode(lat, lng) {
+      const mySeq = ++geocodeSeq;
+      const addrEl = document.getElementById('current-address');
+      const loader = document.getElementById('loading-address');
+      
+      loader.classList.remove('hidden');
+      addrEl.style.opacity = '0.5';
+
+      try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=ja`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Network error');
+        const data = await res.json();
+        
+        if (mySeq !== geocodeSeq) return; 
+
+        let formattedAddress = '';
+        if (data.address) {
+          const a = data.address;
+          formattedAddress += (a.province || a.prefecture || '') + (a.city || a.town || a.village || a.county || '');
+          formattedAddress += (a.suburb || a.quarter || '') + (a.neighbourhood || '');
+          if (a.road) formattedAddress += ' ' + a.road;
+          if (a.house_number) formattedAddress += ' ' + a.house_number;
+          if (a.building || a.amenity) formattedAddress += ' ' + (a.building || a.amenity);
+        }
+        
+        currentLocation.address = formattedAddress.trim() || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      } catch (error) {
+        if (mySeq !== geocodeSeq) return;
+        currentLocation.address = `緯度: ${lat.toFixed(5)} 経度: ${lng.toFixed(5)}`;
+      } finally {
+        if (mySeq === geocodeSeq) {
+          loader.classList.add('hidden');
+          addrEl.style.opacity = '1';
+          addrEl.textContent = currentLocation.address;
+          
+          const formAddress = document.getElementById('form-address');
+          if (formAddress && !document.getElementById('form-modal').classList.contains('hidden')) {
+             if(document.getElementById('form-id').value === '') {
+                 formAddress.value = currentLocation.address;
+             }
+          }
+        }
+      }
+    }
+
+    window.locateMe = function() {
+      const addrEl = document.getElementById('current-address');
+      if (navigator.geolocation) {
+        addrEl.textContent = "GPSで現在地を取得中...";
+        
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            map.setView([lat, lng], 17);
+            marker.setLatLng([lat, lng]);
+            updateCurrentLocation(lat, lng);
+          },
+          (error) => {
+            console.warn("現在地取得エラー:", error);
+            // エラーをアラート表示せず、控えめにUIへ反映させる（プレビュー環境等で煩わしさを防ぐため）
+            addrEl.textContent = "地図をタップして位置を指定してください";
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      } else {
+        alert("お使いのブラウザは位置情報に対応していません。");
+      }
+    };
+
+    function renderMapMarkers() {
+      savedMarkersLayer.clearLayers();
+
+      const getCustomIcon = (type) => {
+        let color = '#64748b'; // slate-500 (その他)
+        if (type === 'ロードサイド物件') color = '#10b981'; // emerald-500
+        if (type === 'ビルイン物件') color = '#3b82f6'; // blue-500
+        if (type === '地権者') color = '#f59e0b'; // amber-500
+
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" width="40px" height="40px"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/><circle cx="12" cy="9" r="2.5" fill="white"/></svg>`;
+        return L.divIcon({
+          html: svg,
+          className: 'custom-div-icon',
+          iconSize: [40, 40],
+          iconAnchor: [20, 40],
+          popupAnchor: [0, -32]
+        });
+      };
+
+      properties.forEach(p => {
+        const m = L.marker([p.lat, p.lng], { icon: getCustomIcon(p.type) });
+        
+        // ルート案内URL（Google Maps）
+        const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
+        
+        // ポップアップ内容（ボタンの視認性を修正）
+        const popupContent = `
+          <div class="mb-3 mt-1">
+            <div class="text-[15px] font-bold text-slate-800 leading-tight mb-1">${esc(p.name)}</div>
+            <div class="text-[11px] text-slate-500">${esc(p.type)}</div>
+          </div>
+          <div class="flex space-x-1.5 mt-2">
+            <!-- 編集ボタン（グレー） -->
+            <button onclick="window.openFormModal('${p.id}')" class="flex-1 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-lg text-[11px] hover:bg-slate-200 transition-colors flex justify-center items-center shadow-sm">
+              編集
+            </button>
+            <!-- 削除ボタン（赤地に白文字） -->
+            <button onclick="window.deleteProperty('${p.id}')" class="flex-1 py-2.5 bg-red-500 text-white font-bold rounded-lg text-[11px] hover:bg-red-600 transition-colors flex justify-center items-center shadow-sm">
+              削除
+            </button>
+            <!-- ルートボタン（青地に白文字、強制上書き） -->
+            <a href="${routeUrl}" target="_blank" class="flex-1 py-2.5 bg-blue-500 font-bold rounded-lg text-[11px] hover:bg-blue-600 transition-colors flex justify-center items-center shadow-sm" style="color: white !important; text-decoration: none;">
+              <i class="fa-solid fa-route mr-1"></i>ルート
+            </a>
+          </div>
+        `;
+        
+        m.bindPopup(popupContent);
+        savedMarkersLayer.addLayer(m);
+      });
+    }
+
+    window.switchTab = function(tabId) {
+      currentTab = tabId;
+      
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('text-slate-800');
+        btn.classList.add('text-slate-400');
+      });
+      const activeBtn = document.getElementById(`tab-${tabId}`);
+      activeBtn.classList.remove('text-slate-400');
+      activeBtn.classList.add('text-slate-800');
+
+      document.querySelectorAll('main > div[id^="view-"]').forEach(view => {
+        view.classList.add('opacity-0', 'pointer-events-none', 'z-0');
+        view.classList.remove('z-10');
+      });
+      
+      const activeView = document.getElementById(`view-${tabId}`);
+      activeView.classList.remove('opacity-0', 'pointer-events-none', 'z-0');
+      activeView.classList.add('z-10');
+
+      if (tabId === 'map' && map) {
+        setTimeout(() => map.invalidateSize(), 300);
+      }
+    };
+
+    window.selectType = function(btn) {
+      document.querySelectorAll('.type-btn').forEach(b => b.setAttribute('data-selected', 'false'));
+      btn.setAttribute('data-selected', 'true');
+      document.getElementById('form-type').value = btn.getAttribute('data-value');
+    };
+
+    window.openFormModal = function(id = null) {
+      const modal = document.getElementById('form-modal');
+      const content = document.getElementById('form-content');
+      
+      if (id) {
+        const p = properties.find(x => x.id === id);
+        if (p) {
+          document.getElementById('modal-title').textContent = '物件を編集';
+          document.getElementById('form-id').value = p.id;
+          document.getElementById('form-name').value = p.name;
+          document.getElementById('form-address').value = p.address;
+          document.getElementById('form-memo').value = p.memo || '';
+          
+          document.querySelectorAll('.type-btn').forEach(b => {
+            b.setAttribute('data-selected', b.getAttribute('data-value') === p.type ? 'true' : 'false');
+          });
+          document.getElementById('form-type').value = p.type;
+        }
+      } else {
+        document.getElementById('modal-title').textContent = '物件を登録';
+        document.getElementById('form-id').value = '';
+        document.getElementById('form-name').value = '';
+        document.getElementById('form-address').value = currentLocation.address;
+        document.getElementById('form-memo').value = '';
+        
+        document.querySelectorAll('.type-btn').forEach(b => {
+            b.setAttribute('data-selected', b.getAttribute('data-value') === 'ロードサイド物件' ? 'true' : 'false');
+        });
+        document.getElementById('form-type').value = 'ロードサイド物件';
+      }
+
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        content.classList.remove('translate-y-full');
+      }, 10);
+    };
+
+    window.closeFormModal = function() {
+      const modal = document.getElementById('form-modal');
+      const content = document.getElementById('form-content');
+      
+      modal.classList.add('opacity-0');
+      content.classList.add('translate-y-full');
+      
+      setTimeout(() => {
+        modal.classList.add('hidden');
+      }, 300);
+    };
+
+    window.saveProperty = function() {
+      const id = document.getElementById('form-id').value;
+      const name = document.getElementById('form-name').value.trim();
+      const type = document.getElementById('form-type').value;
+      const address = document.getElementById('form-address').value.trim();
+      const memo = document.getElementById('form-memo').value.trim();
+
+      if (!name) {
+        alert('物件名を入力してください。');
+        return;
+      }
+
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+      if (id) {
+        const idx = properties.findIndex(p => p.id === id);
+        if (idx !== -1) {
+          properties[idx] = { ...properties[idx], name, type, address, memo };
+        }
+      } else {
+        const newProp = {
+          id: Date.now().toString(),
+          lat: currentLocation.lat,
+          lng: currentLocation.lng,
+          name,
+          type,
+          address,
+          memo,
+          createdAt: dateStr,
+          timestamp: Date.now()
+        };
+        properties.push(newProp);
+      }
+
+      saveToLocal();
+      renderList();
+      renderMapMarkers();
+      closeFormModal();
+      
+      // IDを使って確実にボタンを取得
+      const btn = document.getElementById('save-submit-btn');
+      if (btn) {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i>保存しました！';
+        setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+      }
+    };
+
+    window.deleteProperty = function(id) {
+      if (confirm('本当にこの物件を削除しますか？')) {
+        properties = properties.filter(p => p.id !== id);
+        saveToLocal();
+        renderList();
+        renderMapMarkers();
+        
+        if(map) map.closePopup();
+      }
+    };
+
+    function saveToLocal() {
+      localStorage.setItem('storeProperties', JSON.stringify(properties));
+    }
+
+    function renderList() {
+      const listEl = document.getElementById('property-list');
+      document.getElementById('list-count').textContent = `${properties.length}件`;
+      listEl.innerHTML = '';
+
+      if (properties.length === 0) {
+        listEl.innerHTML = '<div class="text-center py-10 text-slate-400 text-sm"><i class="fa-solid fa-map-location-dot text-4xl mb-3 opacity-50 block"></i>登録された物件はありません</div>';
+        return;
+      }
+
+      const sorted = [...properties].sort((a, b) => {
+        const timeA = a.timestamp || Number(a.id);
+        const timeB = b.timestamp || Number(b.id);
+        return timeB - timeA;
+      });
+
+      sorted.forEach(p => {
+        let badgeColor = 'bg-slate-100 text-slate-600';
+        if (p.type === 'ロードサイド物件') badgeColor = 'bg-emerald-100 text-emerald-700';
+        if (p.type === 'ビルイン物件') badgeColor = 'bg-blue-100 text-blue-700';
+        if (p.type === '地権者') badgeColor = 'bg-amber-100 text-amber-700';
+        
+        const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
+
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-2xl p-4 shadow-sm border border-zinc-200';
+        card.innerHTML = `
+          <div class="flex justify-between items-start mb-2">
+            <h3 class="font-bold text-slate-800 text-base leading-tight flex-1 pr-2">${esc(p.name)}</h3>
+            <span class="text-[10px] font-bold px-2 py-1 rounded-md whitespace-nowrap ${badgeColor}">${esc(p.type)}</span>
+          </div>
+          <div class="text-xs text-slate-500 mb-2 flex items-start">
+            <i class="fa-solid fa-location-dot mt-0.5 mr-1.5 w-3 text-center"></i>
+            <span class="leading-tight">${esc(p.address)}</span>
+          </div>
+          ${p.memo ? `<div class="text-xs text-slate-600 bg-zinc-50 p-2.5 rounded-lg mb-3 leading-relaxed border border-zinc-100"><i class="fa-regular fa-comment-dots mr-1.5 opacity-70"></i>${esc(p.memo)}</div>` : ''}
+          <div class="flex justify-between items-center mt-3 pt-3 border-t border-zinc-100">
+            <span class="text-[10px] text-slate-400 font-medium"><i class="fa-regular fa-clock mr-1"></i>${esc(p.createdAt)}</span>
+            <div class="flex space-x-1">
+              <a href="${routeUrl}" target="_blank" class="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors">
+                <i class="fa-solid fa-route"></i>
+              </a>
+              <button onclick="window.moveToProperty(${p.lat}, ${p.lng})" class="w-9 h-9 rounded-full bg-zinc-100 text-slate-600 flex items-center justify-center hover:bg-zinc-200 transition-colors">
+                <i class="fa-solid fa-map"></i>
+              </button>
+              <button onclick="window.openFormModal('${p.id}')" class="w-9 h-9 rounded-full bg-zinc-100 text-slate-600 flex items-center justify-center hover:bg-zinc-200 transition-colors">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+            </div>
+          </div>
+        `;
+        listEl.appendChild(card);
+      });
+    }
+
+    window.moveToProperty = function(lat, lng) {
+      window.switchTab('map');
+      map.setView([lat, lng], 17);
+    };
+
+    window.exportData = function(type) {
+      if (properties.length === 0) {
+        alert('出力するデータがありません。');
+        return;
+      }
+
+      let content, mimeType, filename;
+      const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+
+      if (type === 'json') {
+        content = JSON.stringify(properties, null, 2);
+        mimeType = 'application/json';
+        filename = `店舗立地メモ_${dateStr}.json`;
+      } else if (type === 'csv') {
+        // 全フィールドをダブルクォートで囲む堅牢なCSV生成
+        const headers = ['ID', '登録日時', '物件名', '物件種別', '住所', '緯度', '経度', 'メモ'];
+        const rows = properties.map(p => [
+          `"${p.id}"`, 
+          `"${p.createdAt}"`, 
+          `"${(p.name || '').replace(/"/g, '""')}"`, 
+          `"${p.type}"`,
+          `"${(p.address || '').replace(/"/g, '""')}"`, 
+          `"${p.lat}"`, 
+          `"${p.lng}"`,
+          `"${(p.memo || '').replace(/"/g, '""')}"`
+        ]);
+        content = "\uFEFF" + [headers.map(h => `"${h}"`), ...rows].map(e => e.join(",")).join("\n");
+        mimeType = 'text/csv;charset=utf-8;';
+        filename = `店舗立地メモ_${dateStr}.csv`;
+      }
+
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    window.importData = function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (!Array.isArray(data)) throw new Error("Invalid format");
+          
+          let importedCount = 0;
+          data.forEach(item => {
+            // バリデーション強化 (nameの存在チェック追加)
+            if (item.id && typeof item.lat === 'number' && typeof item.lng === 'number' && item.name) {
+              if (!properties.find(p => p.id === item.id)) {
+                properties.push(item);
+                importedCount++;
+              }
+            }
+          });
+
+          if(importedCount > 0) {
+            saveToLocal();
+            renderList();
+            renderMapMarkers();
+            alert(`${importedCount}件のデータをインポートしました！`);
+          } else {
+            alert('新しいデータはありませんでした（重複、または名前等の必須項目が欠損しているデータ）。');
+          }
+          
+        } catch (err) {
+          alert("ファイルの読み込みに失敗しました。正しいJSONファイルを選択してください。");
+        }
+        event.target.value = ''; 
+      };
+      reader.readAsText(file);
+    };
+  </script>
+</body>
+</html>
