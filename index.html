@@ -31,11 +31,12 @@
     .env-safe-top { padding-top: var(--safe-top); }
     .pb-safe { padding-bottom: calc(var(--safe-bottom) + 80px); /* 80px for bottom nav */ }
     
-    /* マップの高さ設定 (flex-1との競合を避けるため絶対値で確保) */
+    /* マップの高さ設定 (flex構造に合わせて安全に全高確保) */
     #map { 
-      height: calc(100vh - var(--safe-top) - 180px); 
-      z-index: 10; 
+      flex: 1;
       width: 100%;
+      min-height: 0; /* Flexbox内での縮小・伸長を正常化 */
+      z-index: 10; 
     }
     
     /* ポップアップのカスタマイズ（Leafletの標準スタイルを上書き） */
@@ -77,17 +78,17 @@
     <div id="view-map" class="absolute inset-0 flex flex-col z-10 transition-opacity duration-300">
       <div id="map"></div>
       
-      <!-- 現在位置情報パネル -->
-      <div class="bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] rounded-t-2xl z-20 px-5 pt-4 pb-24 absolute bottom-0 w-full h-[180px]">
-        <div class="text-xs text-slate-400 font-bold mb-1">新規登録ピンの位置</div>
-        <div class="flex items-start mb-3 h-[48px]">
-          <i class="fa-solid fa-location-dot text-slate-800 mt-1 mr-2 text-lg"></i>
-          <p id="current-address" class="text-slate-800 font-medium text-sm leading-snug line-clamp-2 transition-opacity">
+      <!-- 現在位置情報パネル (ナビバーと重ならず、常にボタンが全表示されるよう最適化) -->
+      <div class="bg-white shadow-[0_-4px_12px_rgba(0,0,0,0.08)] rounded-t-2xl z-20 px-4 py-3 shrink-0">
+        <div class="text-[11px] text-slate-400 font-bold mb-1">新規登録ピンの位置</div>
+        <div class="flex items-start mb-2.5 min-h-[38px]">
+          <i class="fa-solid fa-location-dot text-slate-800 mt-1 mr-2 text-base"></i>
+          <p id="current-address" class="text-slate-800 font-medium text-xs leading-snug line-clamp-2 transition-opacity">
             地図をタップするか現在地を取得してください
           </p>
-          <div id="loading-address" class="hidden ml-2 mt-1 w-4 h-4 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin"></div>
+          <div id="loading-address" class="hidden ml-2 mt-0.5 w-3.5 h-3.5 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin"></div>
         </div>
-        <button onclick="window.openFormModal()" class="w-full py-3.5 bg-slate-800 text-white font-bold rounded-xl shadow-lg shadow-slate-800/30 active:scale-95 transition-transform flex justify-center items-center text-sm">
+        <button onclick="window.openFormModal()" class="w-full py-3 bg-slate-800 text-white font-bold rounded-xl shadow-md active:scale-95 transition-transform flex justify-center items-center text-sm">
           <i class="fa-solid fa-pen-to-square mr-2"></i>この位置を新規登録
         </button>
       </div>
@@ -140,7 +141,7 @@
     </div>
   </main>
 
-  <nav class="bg-white border-t border-zinc-200 fixed bottom-0 w-full z-30 pb-[env(safe-area-inset-bottom,0px)]">
+  <nav class="bg-white border-t border-zinc-200 z-30 shrink-0 pb-[env(safe-area-inset-bottom,0px)]">
     <div class="flex justify-around items-center h-16">
       <button onclick="window.switchTab('map')" id="tab-map" class="tab-btn flex-1 flex flex-col items-center justify-center text-slate-800 transition-colors">
         <i class="fa-solid fa-map text-xl mb-1"></i>
