@@ -7,7 +7,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="立地メモ">
   
-  <!-- ファビコンおよびPWA用アイコンの統一 -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%231e293b%22/><path d=%22M50 20c-11.04 0-20 8.96-20 20 0 15 20 40 20 40s20-25 20-40c0-11.04-8.96-20-20-20zm0 27c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z%22 fill=%22white%22/></svg>">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%231e293b%22/><path d=%22M50 20c-11.04 0-20 8.96-20 20 0 15 20 40 20 40s20-25 20-40c0-11.04-8.96-20-20-20zm0 27c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z%22 fill=%22white%22/></svg>">
   <title>店舗立地メモ</title>
@@ -57,7 +56,6 @@
       border: none;
     }
     
-    /* レイヤーコントロール（地図切り替え）の装飾 */
     .leaflet-control-layers {
       border-radius: 12px !important;
       border: none !important;
@@ -96,19 +94,30 @@
   <main class="flex-1 relative overflow-hidden flex flex-col">
     <!-- マップ画面 -->
     <div id="view-map" class="absolute inset-0 flex flex-col z-10 transition-opacity duration-300">
-      <div id="map"></div>
       
-      <!-- 下部パネル: 新規登録ボタンが見切れないよう shrink-0 や padding を調整 -->
-      <div class="bg-white shadow-[0_-4px_12px_rgba(0,0,0,0.08)] rounded-t-2xl z-20 px-4 pt-3 pb-[env(safe-area-inset-bottom,12px)] shrink-0">
-        <div class="text-[11px] text-slate-400 font-bold mb-1">新規登録ピンの位置</div>
-        <div class="flex items-start mb-2.5 min-h-[38px]">
-          <i class="fa-solid fa-location-dot text-slate-800 mt-1 mr-2 text-base"></i>
-          <p id="current-address" class="text-slate-800 font-medium text-xs leading-snug line-clamp-2 transition-opacity">
-            地図をタップするか現在地を取得してください
-          </p>
-          <div id="loading-address" class="hidden ml-2 mt-0.5 w-3.5 h-3.5 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin"></div>
+      <!-- 住所検索バー -->
+      <div class="absolute top-3 left-3 right-16 z-[1000] pointer-events-auto">
+        <div class="flex bg-white rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.1)] overflow-hidden border border-slate-200/60">
+          <input type="text" id="map-search-input" placeholder="住所・施設名で検索" class="flex-1 px-4 py-3 text-[13px] text-slate-800 outline-none w-full bg-white/90 focus:bg-white transition-colors" onkeypress="if(event.key==='Enter') window.searchAddress()">
+          <button onclick="window.searchAddress()" id="map-search-btn" class="px-4 py-2 text-slate-500 hover:text-slate-800 bg-slate-50/90 hover:bg-slate-100 transition-colors border-l border-slate-100">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </button>
         </div>
-        <button onclick="window.openFormModal()" class="w-full py-3.5 bg-slate-800 text-white font-bold rounded-xl shadow-md active:scale-95 transition-transform flex justify-center items-center text-sm mb-2">
+      </div>
+
+      <!-- マップ本体 -->
+      <div id="map" class="w-full flex-1 min-h-0"></div>
+
+      <!-- 住所表示＆新規登録パネル -->
+      <div class="bg-white px-4 py-3 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-[1000] flex flex-col shrink-0 pb-[env(safe-area-inset-bottom,0px)]">
+        <div class="mb-2">
+          <p class="text-[10px] font-bold text-slate-400 mb-0.5">新規登録ピンの位置</p>
+          <div class="flex items-center">
+            <p id="current-address" class="text-sm font-bold text-slate-800 line-clamp-2 leading-tight transition-opacity min-h-[1.25rem]">位置情報を取得中...</p>
+            <i id="loading-address" class="fa-solid fa-spinner fa-spin text-slate-400 ml-2 hidden"></i>
+          </div>
+        </div>
+        <button onclick="window.openFormModal()" class="w-full py-3.5 bg-slate-800 text-white font-bold rounded-xl shadow-md active:scale-95 transition-transform flex justify-center items-center text-sm mb-1">
           <i class="fa-solid fa-pen-to-square mr-2"></i>この位置を新規登録
         </button>
       </div>
@@ -248,27 +257,21 @@
     function initMap() {
       map = L.map('map', { zoomControl: false }).setView([currentLocation.lat, currentLocation.lng], 15);
       
-      // 1. ベースマップの定義
-      // 国土地理院 (標準)
       const gsiStd = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
         maxZoom: 18,
         attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>"
       });
-      // Googleマップ
       const googleMap = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
         maxZoom: 20,
         attribution: "&copy; Google"
       });
-      // Google航空写真
       const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
         maxZoom: 20,
         attribution: "&copy; Google"
       });
 
-      // 2. デフォルトレイヤーを設定
       gsiStd.addTo(map);
 
-      // 3. レイヤー切り替えコントロールを追加
       const baseMaps = {
         "国土地理院マップ": gsiStd,
         "Google マップ": googleMap,
@@ -318,8 +321,8 @@
       const addrEl = document.getElementById('current-address');
       const loader = document.getElementById('loading-address');
       
-      loader.classList.remove('hidden');
-      addrEl.style.opacity = '0.5';
+      if(loader) loader.classList.remove('hidden');
+      if(addrEl) addrEl.style.opacity = '0.5';
 
       try {
         const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=ja`;
@@ -345,9 +348,11 @@
         currentLocation.address = `緯度: ${lat.toFixed(5)} 経度: ${lng.toFixed(5)}`;
       } finally {
         if (mySeq === geocodeSeq) {
-          loader.classList.add('hidden');
-          addrEl.style.opacity = '1';
-          addrEl.textContent = currentLocation.address;
+          if(loader) loader.classList.add('hidden');
+          if(addrEl) {
+            addrEl.style.opacity = '1';
+            addrEl.textContent = currentLocation.address;
+          }
           
           const formAddress = document.getElementById('form-address');
           if (formAddress && !document.getElementById('form-modal').classList.contains('hidden')) {
@@ -362,7 +367,7 @@
     window.locateMe = function() {
       const addrEl = document.getElementById('current-address');
       if (navigator.geolocation) {
-        addrEl.textContent = "GPSで現在地を取得中...";
+        if(addrEl) addrEl.textContent = "GPSで現在地を取得中...";
         navigator.geolocation.getCurrentPosition(
           (position) => {
             const lat = position.coords.latitude;
@@ -373,27 +378,32 @@
           },
           (error) => {
             console.warn("現在地取得エラー:", error);
-            addrEl.textContent = "地図をタップして位置を指定してください";
+            if(addrEl) addrEl.textContent = "地図をタップして位置を指定してください";
           },
           { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
       } else {
-        addrEl.textContent = "位置情報がサポートされていません";
+        if(addrEl) addrEl.textContent = "位置情報がサポートされていません";
       }
     };
 
     function renderMapMarkers() {
       savedMarkersLayer.clearLayers();
 
-      const getCustomIcon = (type) => {
+      const getCustomIcon = (type, flagged) => {
         let color = '#64748b'; 
         if (type === 'ロードサイド物件') color = '#10b981'; 
         if (type === 'ビルイン物件') color = '#3b82f6'; 
         if (type === '地権者') color = '#f59e0b'; 
 
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" width="40px" height="40px"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/><circle cx="12" cy="9" r="2.5" fill="white"/></svg>`;
+        const htmlStr = `
+          <div style="position:relative; width:40px; height:40px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" width="40px" height="40px"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/><circle cx="12" cy="9" r="2.5" fill="white"/></svg>
+            ${flagged ? '<div class="absolute -top-1 -right-1 bg-red-500 text-white w-5 h-5 rounded-full border-[1.5px] border-white flex items-center justify-center text-[10px] shadow-sm"><i class="fa-solid fa-flag"></i></div>' : ''}
+          </div>
+        `;
         return L.divIcon({
-          html: svg,
+          html: htmlStr,
           className: 'custom-div-icon',
           iconSize: [40, 40],
           iconAnchor: [20, 40],
@@ -402,16 +412,16 @@
       };
 
       properties.forEach(p => {
-        const m = L.marker([p.lat, p.lng], { icon: getCustomIcon(p.type) });
-        const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
+        const m = L.marker([p.lat, p.lng], { icon: getCustomIcon(p.type, p.flagged) });
         
+        const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
         const popupContent = `
-          <div class="mb-3 mt-1">
-            <div class="text-[15px] font-bold text-slate-800 leading-tight mb-1">${esc(p.name)}</div>
+          <div class="mb-2">
+            <h4 class="font-bold text-slate-800 text-[13px] leading-tight mb-1">${esc(p.name)}</h4>
             <div class="text-[11px] text-slate-500">${esc(p.type)}</div>
           </div>
           <div class="flex space-x-1.5 mt-2">
-            <button onclick="window.openFormModal('${p.id}')" class="flex-1 py-2 bg-slate-100 text-slate-700 font-bold rounded-lg text-[11px] hover:bg-slate-200 transition-colors shadow-sm">
+            <button onclick="window.openFormModal('${p.id}')" class="flex-1 py-2 bg-zinc-100 text-slate-600 font-bold rounded-lg text-[11px] hover:bg-zinc-200 transition-colors shadow-sm">
               編集
             </button>
             <button onclick="window.deleteProperty('${p.id}')" class="flex-1 py-2 bg-red-500 text-white font-bold rounded-lg text-[11px] hover:bg-red-600 transition-colors shadow-sm">
@@ -422,6 +432,7 @@
             </a>
           </div>
         `;
+        
         m.bindPopup(popupContent);
         savedMarkersLayer.addLayer(m);
       });
@@ -533,7 +544,8 @@
           address,
           memo,
           createdAt: dateStr,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          flagged: false
         };
         properties.push(newProp);
       }
@@ -602,7 +614,15 @@
           </div>
           ${p.memo ? `<div class="text-xs text-slate-600 bg-zinc-50 p-2.5 rounded-lg mb-3 leading-relaxed border border-zinc-100"><i class="fa-regular fa-comment-dots mr-1.5 opacity-70"></i>${esc(p.memo)}</div>` : ''}
           <div class="flex justify-between items-center mt-3 pt-3 border-t border-zinc-100">
-            <span class="text-[10px] text-slate-400 font-medium"><i class="fa-regular fa-clock mr-1"></i>${esc(p.createdAt)}</span>
+            
+            <label class="flex items-center cursor-pointer group py-1 pr-2">
+              <input type="checkbox" onchange="window.toggleFlag('${p.id}')" class="hidden" ${p.flagged ? 'checked' : ''}>
+              <div class="w-6 h-6 rounded border flex items-center justify-center transition-colors ${p.flagged ? 'bg-red-50 border-red-200' : 'bg-zinc-100 border-zinc-200 group-hover:bg-zinc-200'}">
+                <i class="fa-solid fa-flag text-[10px] ${p.flagged ? 'text-red-500' : 'text-slate-300'}"></i>
+              </div>
+              <span class="text-[11px] font-bold ml-1.5 ${p.flagged ? 'text-red-600' : 'text-slate-500 group-hover:text-slate-700'}">フラッグ</span>
+            </label>
+
             <div class="flex space-x-1">
               <a href="${routeUrl}" target="_blank" class="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors">
                 <i class="fa-solid fa-route"></i>
@@ -638,11 +658,11 @@
         mimeType = 'application/json';
         filename = `店舗立地メモ_${dateStr}.json`;
       } else if (type === 'csv') {
-        const headers = ['ID', '登録日時', '物件名', '物件種別', '住所', '緯度', '経度', 'メモ'];
+        const headers = ['ID', '登録日時', '物件名', '物件種別', '住所', '緯度', '経度', 'メモ', 'フラッグ'];
         const rows = properties.map(p => [
           `"${p.id}"`, `"${p.createdAt}"`, `"${(p.name || '').replace(/"/g, '""')}"`, 
           `"${p.type}"`, `"${(p.address || '').replace(/"/g, '""')}"`, `"${p.lat}"`, `"${p.lng}"`,
-          `"${(p.memo || '').replace(/"/g, '""')}"`
+          `"${(p.memo || '').replace(/"/g, '""')}"`, `"${p.flagged ? 'TRUE' : 'FALSE'}"`
         ]);
         content = "\uFEFF" + [headers.map(h => `"${h}"`), ...rows].map(e => e.join(",")).join("\n");
         mimeType = 'text/csv;charset=utf-8;';
@@ -692,6 +712,50 @@
         event.target.value = ''; 
       };
       reader.readAsText(file);
+    };
+
+    window.toggleFlag = function(id) {
+      const idx = properties.findIndex(p => p.id === id);
+      if (idx !== -1) {
+        properties[idx].flagged = !properties[idx].flagged;
+        saveToLocal();
+        renderList();
+        renderMapMarkers();
+      }
+    };
+
+    window.searchAddress = async function() {
+      const input = document.getElementById('map-search-input');
+      const btn = document.getElementById('map-search-btn');
+      const query = input.value.trim();
+      if (!query) return;
+
+      const originalIcon = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+      input.disabled = true;
+
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&limit=1&accept-language=ja`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Search failed');
+        const data = await res.json();
+
+        if (data && data.length > 0) {
+          const lat = parseFloat(data[0].lat);
+          const lng = parseFloat(data[0].lon);
+          map.setView([lat, lng], 16);
+          marker.setLatLng([lat, lng]);
+          updateCurrentLocation(lat, lng);
+          input.blur(); 
+        } else {
+          alert('「' + query + '」が見つかりませんでした。\n市町村名などを加えて再度お試しください。');
+        }
+      } catch (error) {
+        alert('検索エラーが発生しました。ネットワーク環境をご確認ください。');
+      } finally {
+        btn.innerHTML = originalIcon;
+        input.disabled = false;
+      }
     };
   </script>
 </body>
