@@ -532,7 +532,15 @@
       if (id) {
         const idx = properties.findIndex(p => p.id === id);
         if (idx !== -1) {
-          properties[idx] = { ...properties[idx], name, type, address, memo };
+          properties[idx] = { 
+            ...properties[idx], 
+            name, 
+            type, 
+            address, 
+            memo,
+            updatedAt: dateStr, // 更新日時を追加
+            timestamp: Date.now() 
+          };
         }
       } else {
         const newProp = {
@@ -543,7 +551,7 @@
           type,
           address,
           memo,
-          createdAt: dateStr,
+          createdAt: dateStr, // 登録日時
           timestamp: Date.now(),
           flagged: false
         };
@@ -604,17 +612,23 @@
         const card = document.createElement('div');
         card.className = 'bg-white rounded-2xl p-4 shadow-sm border border-zinc-200';
         card.innerHTML = `
-          <div class="flex justify-between items-start mb-2">
+          <div class="flex justify-between items-start mb-1.5">
             <h3 class="font-bold text-slate-800 text-base leading-tight flex-1 pr-2">${esc(p.name)}</h3>
             <span class="text-[10px] font-bold px-2 py-1 rounded-md whitespace-nowrap ${badgeColor}">${esc(p.type)}</span>
           </div>
+          
+          <div class="text-[10px] text-slate-400 mb-2.5 flex items-center gap-3">
+            <span><i class="fa-regular fa-calendar-plus mr-1"></i>${esc(p.createdAt)}</span>
+            ${p.updatedAt ? `<span class="text-slate-500 font-medium"><i class="fa-solid fa-clock-rotate-left mr-1"></i>更新: ${esc(p.updatedAt)}</span>` : ''}
+          </div>
+
           <div class="text-xs text-slate-500 mb-2 flex items-start">
             <i class="fa-solid fa-location-dot mt-0.5 mr-1.5 w-3 text-center"></i>
             <span class="leading-tight">${esc(p.address)}</span>
           </div>
           ${p.memo ? `<div class="text-xs text-slate-600 bg-zinc-50 p-2.5 rounded-lg mb-3 leading-relaxed border border-zinc-100"><i class="fa-regular fa-comment-dots mr-1.5 opacity-70"></i>${esc(p.memo)}</div>` : ''}
+          
           <div class="flex justify-between items-center mt-3 pt-3 border-t border-zinc-100">
-            
             <label class="flex items-center cursor-pointer group py-1 pr-2">
               <input type="checkbox" onchange="window.toggleFlag('${p.id}')" class="hidden" ${p.flagged ? 'checked' : ''}>
               <div class="w-6 h-6 rounded border flex items-center justify-center transition-colors ${p.flagged ? 'bg-red-50 border-red-200' : 'bg-zinc-100 border-zinc-200 group-hover:bg-zinc-200'}">
@@ -658,9 +672,9 @@
         mimeType = 'application/json';
         filename = `店舗立地メモ_${dateStr}.json`;
       } else if (type === 'csv') {
-        const headers = ['ID', '登録日時', '物件名', '物件種別', '住所', '緯度', '経度', 'メモ', 'フラッグ'];
+        const headers = ['ID', '登録日時', '更新日時', '物件名', '物件種別', '住所', '緯度', '経度', 'メモ', 'フラッグ'];
         const rows = properties.map(p => [
-          `"${p.id}"`, `"${p.createdAt}"`, `"${(p.name || '').replace(/"/g, '""')}"`, 
+          `"${p.id}"`, `"${p.createdAt}"`, `"${p.updatedAt || ''}"`, `"${(p.name || '').replace(/"/g, '""')}"`, 
           `"${p.type}"`, `"${(p.address || '').replace(/"/g, '""')}"`, `"${p.lat}"`, `"${p.lng}"`,
           `"${(p.memo || '').replace(/"/g, '""')}"`, `"${p.flagged ? 'TRUE' : 'FALSE'}"`
         ]);
