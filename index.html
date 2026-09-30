@@ -7,13 +7,15 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="BukkenMemo">
   
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%231e293b%22/><path d=%22M50 20c-11.04 0-20 8.96-20 20 0 15 20 40 20 40s20-25 20-40c0-11.04-8.96-20-20-20zm0 27c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z%22 fill=%22white%22/></svg>">
-  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%231e293b%22/><path d=%22M50 20c-11.04 0-20 8.96-20 20 0 15 20 40 20 40s20-25 20-40c0-11.04-8.96-20-20-20zm0 27c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z%22 fill=%22white%22/></svg>">
   <title>BukkenMemo</title>
   
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/854/854878.png">
+  <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/854/854878.png">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
+  <!-- CDNを変更してプレビュー環境でも確実に動作するように修正 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 
@@ -24,235 +26,257 @@
     }
     body {
       font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
-      background-color: #f4f4f5; 
-      color: #334155; 
       overscroll-behavior-y: none;
+      background-color: #f3f4f6;
     }
     .env-safe-top { padding-top: var(--safe-top); }
-    .pb-safe { padding-bottom: calc(var(--safe-bottom) + 80px); }
+    .pb-safe { padding-bottom: calc(var(--safe-bottom) + 64px); }
     
     #map { 
-      flex: 1;
       width: 100%;
-      min-height: 0; 
+      height: 100%;
       z-index: 10; 
     }
     
+    /* Leaflet Overrides */
     .leaflet-popup-content-wrapper {
       border-radius: 12px;
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
       padding: 0;
+      overflow: hidden;
     }
     .leaflet-popup-content {
-      margin: 14px;
-      min-width: 240px;
+      margin: 0;
+      min-width: 280px;
     }
     .leaflet-container a.leaflet-popup-close-button {
-      color: #94a3b8;
-      padding: 6px;
+      color: #6b7280;
+      padding: 8px;
     }
     .custom-div-icon {
       background: transparent;
       border: none;
     }
     
-    .leaflet-control-layers {
-      border-radius: 12px !important;
-      border: none !important;
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06) !important;
-      overflow: hidden;
+    /* Target Marker (新規登録用のターゲット) */
+    .target-marker {
+      width: 24px;
+      height: 24px;
+      background-color: #1d4ed8;
+      border: 3px solid white;
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      position: relative;
     }
-    .leaflet-control-layers-toggle {
-      width: 40px !important;
-      height: 40px !important;
-      background-size: 20px 20px !important;
+    .target-marker::after {
+      content: '';
+      position: absolute;
+      top: -10px; left: -10px; right: -10px; bottom: -10px;
+      border-radius: 50%;
+      background: rgba(29, 78, 216, 0.2);
+      animation: pulse 2s infinite;
     }
-    .leaflet-control-layers-list {
-      padding: 8px 12px;
-      font-size: 13px;
-      color: #334155;
-      font-weight: 500;
+    @keyframes pulse {
+      0% { transform: scale(0.5); opacity: 1; }
+      100% { transform: scale(2); opacity: 0; }
     }
-    .leaflet-control-layers-base label {
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
+
+    /* Swipe Content Transition */
+    .swipe-content {
+      will-change: transform;
+      touch-action: pan-y;
     }
   </style>
 </head>
 <body class="h-screen w-full flex flex-col overflow-hidden">
 
-  <header class="bg-slate-800 text-white shadow-md z-20 relative env-safe-top">
+  <header class="bg-blue-800 text-white shadow-md z-20 relative env-safe-top shrink-0">
     <div class="flex justify-between items-center px-4 py-3">
-      <h1 class="text-lg font-bold tracking-wider"><i class="fa-solid fa-map-location-dot mr-2"></i>BukkenMemo</h1>
-      <button onclick="window.locateMe()" class="text-slate-200 hover:text-white transition p-2">
-        <i class="fa-solid fa-location-crosshairs text-xl"></i>
-      </button>
+      <div class="flex items-center space-x-3">
+        <i class="fa-solid fa-map-location-dot text-xl"></i>
+        <h1 class="text-lg font-bold tracking-wider">BukkenMemo</h1>
+      </div>
+      <div class="flex space-x-2">
+        <button onclick="window.showTrashModal()" class="w-9 h-9 rounded-full bg-blue-700 hover:bg-blue-600 flex items-center justify-center transition-colors">
+          <i class="fa-solid fa-trash-can text-sm"></i>
+        </button>
+        <button onclick="window.toggleSettingsMenu()" class="w-9 h-9 rounded-full bg-blue-700 hover:bg-blue-600 flex items-center justify-center transition-colors relative">
+          <i class="fa-solid fa-ellipsis-vertical"></i>
+        </button>
+      </div>
     </div>
   </header>
 
-  <main class="flex-1 relative overflow-hidden flex flex-col">
-    <!-- マップ画面 -->
+  <!-- Settings Menu -->
+  <div id="settings-menu" class="absolute top-16 right-4 bg-white rounded-lg shadow-xl py-2 z-50 hidden border border-gray-100">
+    <button onclick="window.exportData('json')" class="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center">
+      <i class="fa-solid fa-file-code w-6 text-gray-400"></i>JSONでバックアップ
+    </button>
+    <button onclick="window.exportData('csv')" class="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center">
+      <i class="fa-solid fa-file-csv w-6 text-gray-400"></i>CSVでバックアップ
+    </button>
+    <label class="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center cursor-pointer border-t border-gray-100">
+      <i class="fa-solid fa-folder-open w-6 text-gray-400"></i>データを復元 (JSON)
+      <input type="file" accept=".json" class="hidden" onchange="window.importData(event)">
+    </label>
+  </div>
+
+  <main class="flex-1 relative overflow-hidden flex flex-col bg-gray-50">
+    
     <div id="view-map" class="absolute inset-0 flex flex-col z-10 transition-opacity duration-300">
       
-      <!-- 住所検索バー -->
-      <div class="absolute top-3 left-3 right-16 z-[1000] pointer-events-auto">
-        <div class="flex bg-white rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.1)] overflow-hidden border border-slate-200/60">
-          <input type="text" id="map-search-input" placeholder="住所・施設名で検索" class="flex-1 px-4 py-3 text-[13px] text-slate-800 outline-none w-full bg-white/90 focus:bg-white transition-colors" onkeypress="if(event.key==='Enter') window.searchAddress()">
-          <button onclick="window.searchAddress()" id="map-search-btn" class="px-4 py-2 text-slate-500 hover:text-slate-800 bg-slate-50/90 hover:bg-slate-100 transition-colors border-l border-slate-100">
-            <i class="fa-solid fa-magnifying-glass"></i>
+      <!-- Search Bar & Layer Toggle -->
+      <div class="absolute top-4 left-4 right-4 flex space-x-2 z-[1000] pointer-events-auto">
+        <div class="flex-1 flex bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 items-center pl-3">
+          <i class="fa-solid fa-magnifying-glass text-gray-400"></i>
+          <input type="text" id="map-search-input" placeholder="住所や施設名を検索" class="flex-1 px-3 py-3 text-sm text-gray-700 outline-none" onkeypress="if(event.key==='Enter') window.searchAddress()">
+          <button onclick="window.searchAddress()" class="px-4 py-3 bg-gray-50 text-blue-600 hover:bg-blue-50 border-l border-gray-100 font-bold transition-colors">
+            検索
           </button>
         </div>
+        <button onclick="window.toggleLayerMenu()" class="w-12 h-12 bg-white rounded-xl shadow-lg flex items-center justify-center text-gray-600 hover:text-blue-600 transition-colors border border-gray-100 shrink-0">
+          <i class="fa-solid fa-layer-group text-lg"></i>
+        </button>
       </div>
 
-      <!-- マップ本体 -->
-      <div id="map" class="w-full flex-1 min-h-0"></div>
+      <!-- Layer Menu -->
+      <div id="layer-menu" class="absolute top-18 right-4 bg-white rounded-xl shadow-xl py-2 z-[1001] hidden border border-gray-100 w-48 pointer-events-auto">
+        <div class="px-4 py-2 text-xs font-bold text-gray-400 border-b border-gray-50">地図の種類</div>
+        <button onclick="window.switchLayer('gsi')" class="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between">
+          <span>国土地理院 (標準)</span><i class="fa-solid fa-check text-blue-600 hidden layer-check-gsi"></i>
+        </button>
+        <button onclick="window.switchLayer('google')" class="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between">
+          <span>Google マップ</span><i class="fa-solid fa-check text-blue-600 hidden layer-check-google"></i>
+        </button>
+        <button onclick="window.switchLayer('googleSat')" class="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between">
+          <span>航空写真</span><i class="fa-solid fa-check text-blue-600 hidden layer-check-googleSat"></i>
+        </button>
+      </div>
 
-      <!-- 住所表示＆新規登録パネル -->
-      <div class="bg-white px-4 py-3 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-[1000] flex flex-col shrink-0 pb-[env(safe-area-inset-bottom,0px)]">
-        <div class="mb-2">
-          <p class="text-[10px] font-bold text-slate-400 mb-0.5">新規登録ピンの位置</p>
-          <div class="flex items-center">
-            <p id="current-address" class="text-sm font-bold text-slate-800 line-clamp-2 leading-tight transition-opacity min-h-[1.25rem]">位置情報を取得中...</p>
-            <i id="loading-address" class="fa-solid fa-spinner fa-spin text-slate-400 ml-2 hidden"></i>
+      <div id="map" class="flex-1 w-full"></div>
+
+      <!-- Locate Me -->
+      <button onclick="window.locateMe()" class="absolute bottom-[160px] right-4 z-[1000] w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-blue-600 border border-gray-100 hover:bg-blue-50 transition-colors pointer-events-auto">
+        <i class="fa-solid fa-location-crosshairs text-xl"></i>
+      </button>
+
+      <!-- Bottom Panel (Address & Register) -->
+      <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl shadow-[0_-10px_30px_rgba(0,0,0,0.1)] p-5 z-[1000] pointer-events-auto pb-safe">
+        <div class="flex items-start mb-4">
+          <i class="fa-solid fa-location-dot text-blue-600 mt-1 mr-3 text-lg"></i>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs text-gray-500 font-bold mb-1">新規登録ピンの位置</p>
+            <p id="current-address" class="text-gray-800 font-bold text-sm leading-snug line-clamp-2">現在地を取得中...</p>
           </div>
         </div>
-        <button onclick="window.openFormModal()" class="w-full py-3.5 bg-slate-800 text-white font-bold rounded-xl shadow-md active:scale-95 transition-transform flex justify-center items-center text-sm mb-1 whitespace-nowrap overflow-hidden">
-          <i class="fa-solid fa-pen-to-square mr-2 shrink-0"></i><span class="truncate">登録</span>
+        <button onclick="window.openFormModal()" class="w-full bg-blue-800 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-md transition-colors flex justify-center items-center">
+          <i class="fa-solid fa-pen-to-square mr-2"></i>登録
         </button>
       </div>
     </div>
 
-    <!-- リスト画面 -->
-    <div id="view-list" class="absolute inset-0 bg-zinc-50 z-0 opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto pb-safe">
-      <div class="p-4">
-        <div class="flex justify-between items-center mb-4 mt-2">
-          <h2 class="text-lg font-bold text-slate-800">登録済み物件</h2>
-          <span id="list-count" class="text-xs font-bold bg-slate-200 text-slate-600 px-2 py-1 rounded-full">0件</span>
-        </div>
-        <div id="property-list" class="space-y-3 overflow-x-hidden"></div>
+    <div id="view-list" class="absolute inset-0 bg-gray-50 z-0 opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto pb-safe">
+      <div class="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center z-20 shadow-sm">
+        <h2 class="font-bold text-gray-700 flex items-center"><i class="fa-solid fa-list-ul mr-2 text-blue-600"></i>登録物件リスト</h2>
+        <span id="list-count" class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold">0件</span>
       </div>
-    </div>
-
-    <!-- ゴミ箱画面 -->
-    <div id="view-trash" class="absolute inset-0 bg-zinc-50 z-0 opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto pb-safe">
-      <div class="p-4">
-        <div class="flex justify-between items-center mb-4 mt-2">
-          <h2 class="text-lg font-bold text-slate-800">ゴミ箱</h2>
-          <button onclick="window.emptyTrash()" class="text-xs font-bold bg-red-100 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-200 transition-colors shadow-sm">
-            <i class="fa-solid fa-ban mr-1"></i>全て削除
-          </button>
-        </div>
-        <p class="text-xs text-slate-500 mb-4 bg-white p-3 rounded-lg border border-slate-200">
-          <i class="fa-solid fa-circle-info mr-1"></i>リスト画面で物件を左にスワイプするとゴミ箱に移動できます。
-        </p>
-        <div id="trash-list" class="space-y-3"></div>
-      </div>
-    </div>
-
-    <!-- バックアップ画面 -->
-    <div id="view-backup" class="absolute inset-0 bg-zinc-50 z-0 opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto pb-safe">
-      <div class="p-4 mt-2">
-        <h2 class="text-lg font-bold text-slate-800 mb-4">データ管理</h2>
-        
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-zinc-200 mb-4">
-          <h3 class="text-sm font-bold text-slate-800 mb-3"><i class="fa-solid fa-download text-slate-500 mr-2"></i>エクスポート (保存)</h3>
-          <p class="text-xs text-slate-500 mb-4 leading-relaxed">
-            登録したデータを保存します。バックアップとして定期的に保存することをおすすめします。
-          </p>
-          <div class="space-y-2">
-            <button onclick="window.exportData('json')" class="w-full py-3 bg-slate-100 text-slate-800 font-bold rounded-xl text-sm flex items-center justify-center border border-slate-200 active:bg-slate-200">
-              <i class="fa-solid fa-file-code mr-2"></i>JSON形式で保存（復元用）
-            </button>
-            <button onclick="window.exportData('csv')" class="w-full py-3 bg-slate-100 text-slate-800 font-bold rounded-xl text-sm flex items-center justify-center border border-slate-200 active:bg-slate-200">
-              <i class="fa-solid fa-file-csv mr-2"></i>CSV形式で保存（Excel用）
-            </button>
-          </div>
-        </div>
-
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-zinc-200">
-          <h3 class="text-sm font-bold text-slate-800 mb-3"><i class="fa-solid fa-upload text-slate-500 mr-2"></i>インポート (復元)</h3>
-          <p class="text-xs text-slate-500 mb-4 leading-relaxed">
-            保存したJSONファイルからデータを復元します。
-          </p>
-          <label class="w-full py-3 bg-slate-800 text-white font-bold rounded-xl text-sm flex items-center justify-center shadow-md active:scale-95 transition-transform cursor-pointer">
-            <i class="fa-solid fa-folder-open mr-2"></i>ファイルを選択
-            <input type="file" accept=".json" class="hidden" onchange="window.importData(event)">
-          </label>
-        </div>
+      <div id="property-list" class="p-0">
+        <!-- List items injected here -->
       </div>
     </div>
   </main>
 
-  <nav class="bg-white border-t border-zinc-200 z-30 shrink-0 pb-[env(safe-area-inset-bottom,0px)] relative">
+  <nav class="bg-white border-t border-gray-200 z-30 shrink-0 pb-[env(safe-area-inset-bottom,0px)] relative">
     <div class="flex justify-around items-center h-16">
-      <button onclick="window.switchTab('map')" id="tab-map" class="tab-btn flex-1 flex flex-col items-center justify-center text-slate-800 transition-colors">
-        <i class="fa-solid fa-map text-xl mb-1"></i>
-        <span class="text-[10px] font-bold mt-1">マップ</span>
+      <button onclick="window.switchMainView('map')" id="nav-map" class="flex-1 flex flex-col items-center justify-center text-blue-600 transition-colors">
+        <i class="fa-solid fa-map mb-1 text-xl"></i>
+        <span class="text-[10px] font-bold">マップ</span>
       </button>
-      <button onclick="window.switchTab('list')" id="tab-list" class="tab-btn flex-1 flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
-        <i class="fa-solid fa-list text-xl mb-1"></i>
-        <span class="text-[10px] font-bold mt-1">リスト</span>
-      </button>
-      <button onclick="window.switchTab('trash')" id="tab-trash" class="tab-btn flex-1 flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
-        <i class="fa-solid fa-trash-can text-xl mb-1"></i>
-        <span class="text-[10px] font-bold mt-1">ゴミ箱</span>
-      </button>
-      <button onclick="window.switchTab('backup')" id="tab-backup" class="tab-btn flex-1 flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
-        <i class="fa-solid fa-cloud-arrow-down text-xl mb-1"></i>
-        <span class="text-[10px] font-bold mt-1">バックアップ</span>
+      <button onclick="window.switchMainView('list')" id="nav-list" class="flex-1 flex flex-col items-center justify-center text-gray-400 hover:text-blue-500 transition-colors">
+        <i class="fa-solid fa-list mb-1 text-xl"></i>
+        <span class="text-[10px] font-bold">リスト</span>
       </button>
     </div>
   </nav>
 
-  <div id="form-modal" class="fixed inset-0 bg-slate-900/60 z-50 hidden opacity-0 transition-opacity duration-300 flex items-end justify-center sm:items-center">
-    <div class="bg-white w-full sm:w-[400px] h-[85vh] sm:h-auto sm:max-h-[90vh] rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl transform translate-y-full sm:translate-y-0 transition-transform duration-300" id="form-content">
-      <div class="flex justify-between items-center p-4 border-b border-zinc-100">
-        <h3 class="text-lg font-bold text-slate-800" id="modal-title">物件を登録</h3>
-        <button onclick="window.closeFormModal()" class="w-8 h-8 bg-zinc-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-zinc-200 transition-colors">
+  <!-- Registration/Edit Modal -->
+  <div id="form-modal" class="fixed inset-0 bg-black/60 z-50 hidden opacity-0 transition-opacity duration-300 flex items-end sm:items-center justify-center">
+    <div class="bg-white w-full sm:w-[500px] h-[90vh] sm:h-auto sm:max-h-[90vh] rounded-t-3xl sm:rounded-2xl flex flex-col shadow-2xl transform translate-y-full sm:translate-y-0 transition-transform duration-300" id="form-content">
+      <div class="flex justify-between items-center p-4 border-b border-gray-100">
+        <h3 class="text-lg font-bold text-gray-800" id="modal-title">地点情報</h3>
+        <button onclick="window.closeFormModal()" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
+      
       <div class="p-5 overflow-y-auto flex-1 space-y-5">
         <input type="hidden" id="form-id">
+        <input type="hidden" id="form-lat">
+        <input type="hidden" id="form-lng">
+        
         <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1.5">物件名 / 施設名 <span class="text-red-500">*</span></label>
-          <input type="text" id="form-name" placeholder="例: 〇〇交差点角地" class="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800">
+          <label class="block text-xs font-bold text-gray-500 mb-1.5">物件名 / 施設名</label>
+          <input type="text" id="form-name" placeholder="未入力の場合は自動で日時が登録されます" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 transition-all">
         </div>
+        
         <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1.5">物件種別</label>
-          <div class="grid grid-cols-2 gap-2">
-            <button type="button" class="type-btn border border-zinc-200 bg-white text-slate-600 rounded-xl py-2.5 text-xs font-bold transition-all data-[selected=true]:border-slate-800 data-[selected=true]:bg-slate-800 data-[selected=true]:text-white" data-value="ロードサイド物件" onclick="window.selectType(this)">ロードサイド物件</button>
-            <button type="button" class="type-btn border border-zinc-200 bg-white text-slate-600 rounded-xl py-2.5 text-xs font-bold transition-all data-[selected=true]:border-slate-800 data-[selected=true]:bg-slate-800 data-[selected=true]:text-white" data-value="ビルイン物件" onclick="window.selectType(this)">ビルイン物件</button>
-            <button type="button" class="type-btn border border-zinc-200 bg-white text-slate-600 rounded-xl py-2.5 text-xs font-bold transition-all data-[selected=true]:border-slate-800 data-[selected=true]:bg-slate-800 data-[selected=true]:text-white" data-value="地権者" onclick="window.selectType(this)">地権者</button>
-            <button type="button" class="type-btn border border-zinc-200 bg-white text-slate-600 rounded-xl py-2.5 text-xs font-bold transition-all data-[selected=true]:border-slate-800 data-[selected=true]:bg-slate-800 data-[selected=true]:text-white" data-value="その他" onclick="window.selectType(this)">その他</button>
+          <label class="block text-xs font-bold text-gray-500 mb-1.5">種別</label>
+          <div class="relative">
+            <select id="form-type" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 appearance-none cursor-pointer">
+              <option value="ロードサイド物件">🚗 ロードサイド物件</option>
+              <option value="ビルイン物件">🏢 ビルイン物件</option>
+              <option value="クライアント所在地">💼 クライアント所在地</option>
+              <option value="地権者">🏠 地権者</option>
+              <option value="未分類">❓ 未分類</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+              <i class="fa-solid fa-chevron-down text-xs"></i>
+            </div>
           </div>
-          <input type="hidden" id="form-type" value="ロードサイド物件">
         </div>
+
         <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1.5">住所</label>
-          <textarea id="form-address" rows="2" class="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800"></textarea>
+          <label class="block text-xs font-bold text-gray-500 mb-1.5">住所</label>
+          <textarea id="form-address" rows="2" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"></textarea>
         </div>
+
         <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1.5">メモ</label>
-          <textarea id="form-memo" rows="3" placeholder="視認性、坪単価など..." class="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800"></textarea>
+          <label class="block text-xs font-bold text-gray-500 mb-1.5">メモ</label>
+          <textarea id="form-memo" rows="3" placeholder="営業時間や備考などを入力..." class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"></textarea>
         </div>
       </div>
-      <div class="p-4 border-t border-zinc-100 bg-white pb-[env(safe-area-inset-bottom,16px)]">
-        <button id="save-submit-btn" onclick="window.saveProperty()" class="w-full py-3.5 bg-slate-800 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-transform flex justify-center items-center">
-          <i class="fa-solid fa-check mr-2"></i>保存する
+      <div class="p-4 border-t border-gray-100 bg-white pb-[env(safe-area-inset-bottom,16px)]">
+        <button id="save-submit-btn" onclick="window.saveProperty()" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-colors flex justify-center items-center">
+          保存する
         </button>
       </div>
     </div>
   </div>
 
-  <!-- カスタムダイアログ -->
-  <div id="dialog-modal" class="fixed inset-0 bg-slate-900/60 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
-    <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl transform scale-95 transition-transform duration-300" id="dialog-content">
-      <p id="dialog-message" class="text-slate-800 text-sm font-medium mb-5 whitespace-pre-wrap leading-relaxed"></p>
-      <div class="flex space-x-3 justify-end">
-        <button id="dialog-cancel" class="px-4 py-2.5 bg-zinc-100 text-slate-600 text-sm font-bold rounded-xl hover:bg-zinc-200 transition-colors hidden">キャンセル</button>
-        <button id="dialog-ok" class="px-4 py-2.5 bg-slate-800 text-white text-sm font-bold rounded-xl shadow-md active:scale-95 transition-transform">OK</button>
+  <!-- Trash Modal -->
+  <div id="trash-modal" class="fixed inset-0 bg-black/60 z-[80] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md h-[80vh] rounded-2xl flex flex-col shadow-2xl transform scale-95 transition-transform duration-300" id="trash-content">
+      <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
+        <h3 class="font-bold text-gray-800 flex items-center"><i class="fa-solid fa-trash-can mr-2 text-gray-500"></i>ゴミ箱</h3>
+        <button onclick="window.hideTrashModal()" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+      <div class="p-3 flex justify-between items-center border-b border-gray-100 bg-white">
+        <span class="text-xs text-gray-500 pl-2">削除済みアイテム</span>
+        <button onclick="window.emptyTrash()" class="text-xs font-bold bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors border border-red-100">全て完全削除</button>
+      </div>
+      <div class="flex-1 overflow-y-auto p-4 bg-gray-50" id="trash-list">
+        <!-- Trash items injected here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Dialog -->
+  <div id="dialog-modal" class="fixed inset-0 bg-black/60 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl transform scale-95 transition-transform duration-300 text-center" id="dialog-content">
+      <p id="dialog-message" class="text-gray-800 text-sm font-bold mb-6 whitespace-pre-wrap leading-relaxed"></p>
+      <div class="flex space-x-3 justify-center">
+        <button id="dialog-cancel" class="flex-1 py-3 bg-gray-100 text-gray-600 text-sm font-bold rounded-xl hover:bg-gray-200 transition-colors hidden">キャンセル</button>
+        <button id="dialog-ok" class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl shadow-md transition-colors">OK</button>
       </div>
     </div>
   </div>
@@ -260,7 +284,7 @@
   <script>
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-    // カスタムダイアログ機能（標準のalert/confirmの代わり）
+    // Custom Dialog Logic (Replaces alert/confirm)
     let dialogConfirmCallback = null;
     function showDialog(message, isConfirm, callback = null) {
       const modal = document.getElementById('dialog-modal');
@@ -298,25 +322,35 @@
     function customAlert(message) { showDialog(message, false); }
     function customConfirm(message, onConfirmCallback) { showDialog(message, true, onConfirmCallback); }
 
-    let map, marker;
+    // State
+    let map, targetMarker;
     let savedMarkersLayer; 
     let currentLocation = { lat: 35.681236, lng: 139.767125, address: '現在地を取得中...' };
-    let properties = JSON.parse(localStorage.getItem('storeProperties') || '[]');
-    let currentTab = 'map';
+    
+    // Load Data
+    let properties = JSON.parse(localStorage.getItem('BukkenMemo_properties') || '[]');
+    
+    let currentMainView = 'map';
     let geocodeSeq = 0;
     let geoTimer = null;
+    
+    let mapLayers = {};
+    let currentLayer = 'gsi';
 
+    const typeColors = {
+      'ロードサイド物件': '#3b82f6', // blue
+      'ビルイン物件': '#10b981', // green
+      'クライアント所在地': '#8b5cf6', // purple
+      '地権者': '#f59e0b', // amber
+      '未分類': '#6b7280' // gray
+    };
+
+    // --- Initialization ---
     function initApp() {
-      if (map) return; 
       initMap();
+      renderMapMarkers();
       renderList();
-      renderTrash();
-      initSwipeLogic();
-      
-      const firstTypeBtn = document.querySelector('.type-btn');
-      if (firstTypeBtn) {
-          firstTypeBtn.setAttribute('data-selected', 'true');
-      }
+      updateLayerChecks();
     }
 
     if (document.readyState === 'loading') {
@@ -324,183 +358,219 @@
     } else {
       initApp();
     }
-    window.onload = initApp;
+    
+    // Fallback for iframe previews
+    setTimeout(() => { if(!map) initApp(); }, 1000);
 
+    // --- Map Logic ---
     function initMap() {
-      map = L.map('map', { zoomControl: false }).setView([currentLocation.lat, currentLocation.lng], 15);
+      if(map) return;
+      map = L.map('map', { zoomControl: false, attributionControl: false }).setView([currentLocation.lat, currentLocation.lng], 15);
       
-      const gsiStd = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
-        maxZoom: 18,
-        attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>"
-      });
-      const googleMap = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
-        attribution: "&copy; Google"
-      });
-      const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
-        attribution: "&copy; Google"
-      });
-
-      gsiStd.addTo(map);
-
-      const baseMaps = {
-        "国土地理院マップ": gsiStd,
-        "Google マップ": googleMap,
-        "航空写真": googleSatellite
+      // Define Layers
+      mapLayers = {
+        gsi: L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+          maxZoom: 18,
+          attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>"
+        }),
+        google: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20 }),
+        googleSat: L.tileLayer('https://mt1.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', { maxZoom: 20 })
       };
-      L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
-      L.control.zoom({ position: 'bottomright' }).addTo(map);
+      
+      mapLayers[currentLayer].addTo(map);
       savedMarkersLayer = L.layerGroup().addTo(map);
 
+      // Target Marker (Center crosshairs equivalent)
       const targetIcon = L.divIcon({
-        html: `<div class="w-9 h-9 bg-slate-800 rounded-full flex justify-center items-center shadow-xl border-[3px] border-white"><i class="fa-solid fa-crosshairs text-white text-sm"></i></div>`,
+        html: `<div class="target-marker"></div>`,
         className: 'custom-div-icon',
-        iconSize: [36, 36],
-        iconAnchor: [18, 36]
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
       });
 
-      marker = L.marker([currentLocation.lat, currentLocation.lng], {
+      targetMarker = L.marker([currentLocation.lat, currentLocation.lng], {
         icon: targetIcon,
         draggable: true,
         zIndexOffset: 1000 
       }).addTo(map);
 
-      marker.on('dragend', function (e) {
-        const pos = marker.getLatLng();
+      targetMarker.on('dragend', function (e) {
+        const pos = targetMarker.getLatLng();
         updateCurrentLocation(pos.lat, pos.lng);
       });
 
       map.on('click', function (e) {
-        marker.setLatLng(e.latlng);
+        targetMarker.setLatLng(e.latlng);
         updateCurrentLocation(e.latlng.lat, e.latlng.lng);
       });
 
-      renderMapMarkers();
-      locateMe();
+      // Initial locate attempt
+      if (navigator.geolocation && window.location.protocol === 'https:') {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            map.setView([lat, lng], 17);
+            targetMarker.setLatLng([lat, lng]);
+            updateCurrentLocation(lat, lng);
+          },
+          (error) => { console.warn("Auto-locate failed", error); },
+          { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        );
+      }
+    }
+
+    window.toggleLayerMenu = function() {
+      const menu = document.getElementById('layer-menu');
+      menu.classList.toggle('hidden');
+    };
+
+    window.switchLayer = function(layerId) {
+      if(mapLayers[currentLayer]) {
+        map.removeLayer(mapLayers[currentLayer]);
+      }
+      currentLayer = layerId;
+      mapLayers[currentLayer].addTo(map);
+      updateLayerChecks();
+      document.getElementById('layer-menu').classList.add('hidden');
+    };
+
+    function updateLayerChecks() {
+      document.querySelectorAll('[class*="layer-check-"]').forEach(el => el.classList.add('hidden'));
+      const activeCheck = document.querySelector(`.layer-check-${currentLayer}`);
+      if(activeCheck) activeCheck.classList.remove('hidden');
     }
 
     function updateCurrentLocation(lat, lng) {
       currentLocation.lat = lat;
       currentLocation.lng = lng;
+      
+      const addrEl = document.getElementById('current-address');
+      if(addrEl) addrEl.textContent = '現在地を取得中...';
+      
       clearTimeout(geoTimer);
       geoTimer = setTimeout(() => reverseGeocode(lat, lng), 600);
     }
 
     async function reverseGeocode(lat, lng) {
       const mySeq = ++geocodeSeq;
-      const addrEl = document.getElementById('current-address');
-      const loader = document.getElementById('loading-address');
-      
-      if(loader) loader.classList.remove('hidden');
-      if(addrEl) addrEl.style.opacity = '0.5';
-
       try {
         const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=ja`;
         const res = await fetch(url);
         if (!res.ok) throw new Error('Network error');
         const data = await res.json();
-        
         if (mySeq !== geocodeSeq) return; 
 
-        let formattedAddress = '';
+        let addr = '';
         if (data.address) {
           const a = data.address;
-          formattedAddress += (a.province || a.prefecture || '') + (a.city || a.town || a.village || a.county || '');
-          formattedAddress += (a.suburb || a.quarter || '') + (a.neighbourhood || '');
-          if (a.road) formattedAddress += ' ' + a.road;
-          if (a.house_number) formattedAddress += ' ' + a.house_number;
-          if (a.building || a.amenity) formattedAddress += ' ' + (a.building || a.amenity);
+          addr += (a.province || a.prefecture || '') + (a.city || a.town || a.village || a.county || '');
+          addr += (a.suburb || a.quarter || '') + (a.neighbourhood || '');
+          if (a.road) addr += ' ' + a.road;
+          if (a.house_number) addr += ' ' + a.house_number;
         }
-        
-        currentLocation.address = formattedAddress.trim() || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        currentLocation.address = addr.trim() || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
       } catch (error) {
         if (mySeq !== geocodeSeq) return;
-        currentLocation.address = `緯度: ${lat.toFixed(5)} 経度: ${lng.toFixed(5)}`;
-      } finally {
-        if (mySeq === geocodeSeq) {
-          if(loader) loader.classList.add('hidden');
-          if(addrEl) {
-            addrEl.style.opacity = '1';
-            addrEl.textContent = currentLocation.address;
-          }
-          
-          const formAddress = document.getElementById('form-address');
-          if (formAddress && !document.getElementById('form-modal').classList.contains('hidden')) {
-             if(document.getElementById('form-id').value === '') {
-                 formAddress.value = currentLocation.address;
-             }
-          }
-        }
+        currentLocation.address = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
       }
+      
+      const addrEl = document.getElementById('current-address');
+      if(addrEl) addrEl.textContent = currentLocation.address;
     }
 
     window.locateMe = function() {
-      const addrEl = document.getElementById('current-address');
       if (navigator.geolocation) {
-        if(addrEl) addrEl.textContent = "GPSで現在地を取得中...";
         navigator.geolocation.getCurrentPosition(
           (position) => {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
-            map.setView([lat, lng], 17);
-            marker.setLatLng([lat, lng]);
+            map.flyTo([lat, lng], 17, {duration: 0.5});
+            targetMarker.setLatLng([lat, lng]);
             updateCurrentLocation(lat, lng);
           },
-          (error) => {
-            console.warn("現在地取得エラー:", error);
-            if(addrEl) addrEl.textContent = "地図をタップして位置を指定してください";
-          },
+          (error) => { /* Silent fail in previews */ },
           { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
-      } else {
-        if(addrEl) addrEl.textContent = "位置情報がサポートされていません";
+      }
+    };
+
+    window.searchAddress = async function() {
+      const input = document.getElementById('map-search-input');
+      const query = input.value.trim();
+      if (!query) return;
+
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&limit=1&accept-language=ja`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Search failed');
+        const data = await res.json();
+
+        if (data && data.length > 0) {
+          const lat = parseFloat(data[0].lat);
+          const lng = parseFloat(data[0].lon);
+          map.flyTo([lat, lng], 16, {duration: 0.5});
+          targetMarker.setLatLng([lat, lng]);
+          updateCurrentLocation(lat, lng);
+          input.blur(); 
+        } else {
+          customAlert('見つかりませんでした。\n条件を変更してお試しください。');
+        }
+      } catch (error) {
+        customAlert('検索中にエラーが発生しました。');
       }
     };
 
     function renderMapMarkers() {
+      if(!savedMarkersLayer) return;
       savedMarkersLayer.clearLayers();
 
-      const getCustomIcon = (type, flagged) => {
-        let color = '#64748b'; 
-        if (type === 'ロードサイド物件') color = '#10b981'; 
-        if (type === 'ビルイン物件') color = '#3b82f6'; 
-        if (type === '地権者') color = '#f59e0b'; 
+      const activeProps = properties.filter(p => !p.isDeleted);
 
+      activeProps.forEach(p => {
+        const color = typeColors[p.type] || typeColors['未分類'];
+        
+        // 虫ピン(📍)を模したデザインのHTML
         const htmlStr = `
-          <div style="position:relative; width:40px; height:40px;">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" width="40px" height="40px"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/><circle cx="12" cy="9" r="2.5" fill="white"/></svg>
-            ${flagged ? '<div class="absolute -top-1 -right-1 bg-red-500 text-white w-5 h-5 rounded-full border-[1.5px] border-white flex items-center justify-center text-[10px] shadow-sm"><i class="fa-solid fa-flag"></i></div>' : ''}
+          <div class="relative flex flex-col items-center transform transition-transform hover:scale-110" style="margin-top: -6px;">
+            <div class="w-5 h-5 rounded-full shadow-[inset_-2px_-2px_6px_rgba(0,0,0,0.3),0_2px_4px_rgba(0,0,0,0.4)] border border-white z-10" style="background-color: ${color};"></div>
+            <div class="w-[2px] h-6 bg-gradient-to-b from-gray-400 to-gray-600 shadow-[2px_2px_2px_rgba(0,0,0,0.2)] z-0 -mt-1"></div>
+            ${p.flagged ? '<div class="absolute -top-2 -right-3 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-md border border-gray-100 text-red-500 text-[10px] z-20"><i class="fa-solid fa-flag"></i></div>' : ''}
           </div>
         `;
-        return L.divIcon({
+        
+        const icon = L.divIcon({
           html: htmlStr,
           className: 'custom-div-icon',
-          iconSize: [40, 40],
-          iconAnchor: [20, 40],
+          iconSize: [24, 32],
+          iconAnchor: [12, 32],
           popupAnchor: [0, -32]
         });
-      };
 
-      properties.filter(p => !p.isDeleted).forEach(p => {
-        const m = L.marker([p.lat, p.lng], { icon: getCustomIcon(p.type, p.flagged) });
-        
+        const m = L.marker([p.lat, p.lng], { icon: icon });
         const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
+        
         const popupContent = `
-          <div class="mb-2">
-            <h4 class="font-bold text-slate-800 text-[13px] leading-tight mb-1">${esc(p.name)}</h4>
-            <div class="text-[11px] text-slate-500">${esc(p.type)}</div>
-          </div>
-          <div class="flex space-x-1 mt-2">
-            <button onclick="window.moveToTrash('${p.id}')" class="flex-1 py-2 bg-red-500 text-white font-bold rounded-lg text-[11px] hover:bg-red-600 transition-colors shadow-sm whitespace-nowrap">
-              <i class="fa-solid fa-trash mr-1"></i>削除
-            </button>
-            <button onclick="window.openFormModal('${p.id}')" class="flex-1 py-2 bg-zinc-100 text-slate-600 font-bold rounded-lg text-[11px] hover:bg-zinc-200 transition-colors shadow-sm whitespace-nowrap">
-              編集
-            </button>
-            <a href="${routeUrl}" target="_blank" class="flex-1 py-2 bg-blue-500 font-bold rounded-lg text-[11px] hover:bg-blue-600 transition-colors shadow-sm flex justify-center items-center whitespace-nowrap" style="color: white !important; text-decoration: none;">
-              <i class="fa-solid fa-route mr-1"></i>ルート
-            </a>
+          <div class="p-4 bg-white">
+            <div class="mb-4">
+              <h4 class="font-bold text-gray-800 text-base leading-snug mb-1 pr-4">${esc(p.name)}</h4>
+              <p class="text-[11px] text-gray-500 mb-2">${esc(p.type)}</p>
+              <div class="text-[11px] text-gray-600 flex items-start bg-gray-50 p-2 rounded-lg border border-gray-100">
+                 <i class="fa-solid fa-location-dot mt-0.5 mr-1.5 text-gray-400"></i>
+                 <span class="line-clamp-2">${esc(p.address)}</span>
+              </div>
+            </div>
+            <div class="flex space-x-2">
+              <button onclick="window.moveToTrash('${p.id}')" class="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex justify-center items-center hover:bg-red-100 transition-colors shrink-0">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+              <button onclick="window.openFormModal('${p.id}')" class="flex-1 py-2 bg-gray-100 text-gray-700 font-bold rounded-xl text-sm hover:bg-gray-200 transition-colors">
+                編集
+              </button>
+              <a href="${routeUrl}" target="_blank" class="flex-1 py-2 bg-blue-600 text-white font-bold rounded-xl text-sm hover:bg-blue-700 transition-colors flex justify-center items-center" style="text-decoration: none;">
+                <i class="fa-solid fa-route mr-1"></i>ルート
+              </a>
+            </div>
           </div>
         `;
         
@@ -509,34 +579,30 @@
       });
     }
 
-    window.switchTab = function(tabId) {
-      currentTab = tabId;
-      document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('text-slate-800');
-        btn.classList.add('text-slate-400');
-      });
-      const activeBtn = document.getElementById(`tab-${tabId}`);
-      activeBtn.classList.remove('text-slate-400');
-      activeBtn.classList.add('text-slate-800');
-
-      document.querySelectorAll('main > div[id^="view-"]').forEach(view => {
-        view.classList.add('opacity-0', 'pointer-events-none', 'z-0');
-        view.classList.remove('z-10');
-      });
+    window.switchMainView = function(view) {
+      currentMainView = view;
       
-      const activeView = document.getElementById(`view-${tabId}`);
-      activeView.classList.remove('opacity-0', 'pointer-events-none', 'z-0');
-      activeView.classList.add('z-10');
+      const navMap = document.getElementById('nav-map');
+      const navList = document.getElementById('nav-list');
+      navMap.className = view === 'map' ? 'flex-1 flex flex-col items-center justify-center text-blue-600 transition-colors' : 'flex-1 flex flex-col items-center justify-center text-gray-400 hover:text-blue-500 transition-colors';
+      navList.className = view === 'list' ? 'flex-1 flex flex-col items-center justify-center text-blue-600 transition-colors' : 'flex-1 flex flex-col items-center justify-center text-gray-400 hover:text-blue-500 transition-colors';
+      
+      const viewMap = document.getElementById('view-map');
+      const viewList = document.getElementById('view-list');
 
-      if (tabId === 'map' && map) {
-        setTimeout(() => map.invalidateSize(), 300);
+      if (view === 'map') {
+        viewMap.classList.remove('opacity-0', 'pointer-events-none', 'z-0');
+        viewMap.classList.add('z-10');
+        viewList.classList.add('opacity-0', 'pointer-events-none', 'z-0');
+        viewList.classList.remove('z-10');
+        if(map) setTimeout(() => map.invalidateSize(), 300);
+      } else {
+        viewList.classList.remove('opacity-0', 'pointer-events-none', 'z-0');
+        viewList.classList.add('z-10');
+        viewMap.classList.add('opacity-0', 'pointer-events-none', 'z-0');
+        viewMap.classList.remove('z-10');
+        renderList();
       }
-    };
-
-    window.selectType = function(btn) {
-      document.querySelectorAll('.type-btn').forEach(b => b.setAttribute('data-selected', 'false'));
-      btn.setAttribute('data-selected', 'true');
-      document.getElementById('form-type').value = btn.getAttribute('data-value');
     };
 
     window.openFormModal = function(id = null) {
@@ -546,27 +612,23 @@
       if (id) {
         const p = properties.find(x => x.id === id);
         if (p) {
-          document.getElementById('modal-title').textContent = '物件を編集';
+          document.getElementById('modal-title').textContent = '地点情報を編集';
           document.getElementById('form-id').value = p.id;
-          document.getElementById('form-name').value = p.name;
-          document.getElementById('form-address').value = p.address;
+          document.getElementById('form-lat').value = p.lat;
+          document.getElementById('form-lng').value = p.lng;
+          document.getElementById('form-name').value = p.name || '';
+          document.getElementById('form-address').value = p.address || '';
           document.getElementById('form-memo').value = p.memo || '';
-          
-          document.querySelectorAll('.type-btn').forEach(b => {
-            b.setAttribute('data-selected', b.getAttribute('data-value') === p.type ? 'true' : 'false');
-          });
-          document.getElementById('form-type').value = p.type;
+          document.getElementById('form-type').value = p.type || '未分類';
         }
       } else {
-        document.getElementById('modal-title').textContent = '物件を登録';
+        document.getElementById('modal-title').textContent = '新しく登録';
         document.getElementById('form-id').value = '';
+        document.getElementById('form-lat').value = targetMarker.getLatLng().lat;
+        document.getElementById('form-lng').value = targetMarker.getLatLng().lng;
         document.getElementById('form-name').value = '';
         document.getElementById('form-address').value = currentLocation.address;
         document.getElementById('form-memo').value = '';
-        
-        document.querySelectorAll('.type-btn').forEach(b => {
-            b.setAttribute('data-selected', b.getAttribute('data-value') === 'ロードサイド物件' ? 'true' : 'false');
-        });
         document.getElementById('form-type').value = 'ロードサイド物件';
       }
 
@@ -591,21 +653,20 @@
       const type = document.getElementById('form-type').value;
       const address = document.getElementById('form-address').value.trim();
       const memo = document.getElementById('form-memo').value.trim();
+      const lat = parseFloat(document.getElementById('form-lat').value);
+      const lng = parseFloat(document.getElementById('form-lng').value);
 
       const now = new Date();
       const dateStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
 
-      // 物件名が空の場合は、現在の日時を自動設定する
-      if (!name) {
-        name = dateStr;
-      }
+      if (!name) name = dateStr; // 未入力時は日時
 
       if (id) {
         const idx = properties.findIndex(p => p.id === id);
         if (idx !== -1) {
           properties[idx] = { 
             ...properties[idx], 
-            name, type, address, memo,
+            name, type, address, memo, lat, lng,
             updatedAt: dateStr,
             timestamp: Date.now() 
           };
@@ -613,209 +674,105 @@
       } else {
         properties.push({
           id: Date.now().toString(),
-          lat: currentLocation.lat, lng: currentLocation.lng,
+          lat: lat, lng: lng,
           name, type, address, memo,
+          flagged: false,
           createdAt: dateStr,
           timestamp: Date.now(),
-          flagged: false,
           isDeleted: false
         });
       }
-
+      
       saveToLocal();
       renderList();
       renderMapMarkers();
       closeFormModal();
-      
-      const btn = document.getElementById('save-submit-btn');
-      if (btn) {
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i>保存しました！';
-        setTimeout(() => { btn.innerHTML = originalText; }, 2000);
-      }
     };
-
-    window.moveToTrash = function(id) {
-      const idx = properties.findIndex(p => p.id === id);
-      if (idx !== -1) {
-        properties[idx].isDeleted = true;
-        saveToLocal();
-        renderList();
-        renderTrash();
-        renderMapMarkers();
-        if(map) map.closePopup();
-      }
-    };
-
-    window.restoreProperty = function(id) {
-      const idx = properties.findIndex(p => p.id === id);
-      if (idx !== -1) {
-        properties[idx].isDeleted = false;
-        saveToLocal();
-        renderList();
-        renderTrash();
-        renderMapMarkers();
-      }
-    };
-
-    window.permanentlyDeleteProperty = function(id) {
-      customConfirm('この物件データを完全に削除しますか？\n（復元できません）', () => {
-        properties = properties.filter(p => p.id !== id);
-        saveToLocal();
-        renderTrash();
-      });
-    };
-
-    window.emptyTrash = function() {
-      const trashCount = properties.filter(p => p.isDeleted).length;
-      if (trashCount === 0) return;
-      
-      customConfirm(`ゴミ箱の中の ${trashCount} 件をすべて完全に削除しますか？\n（復元できません）`, () => {
-        properties = properties.filter(p => !p.isDeleted);
-        saveToLocal();
-        renderTrash();
-      });
-    };
-
-    function saveToLocal() {
-      localStorage.setItem('storeProperties', JSON.stringify(properties));
-    }
 
     function renderList() {
       const listEl = document.getElementById('property-list');
-      const activeProperties = properties.filter(p => !p.isDeleted);
-      document.getElementById('list-count').textContent = `${activeProperties.length}件`;
+      const activeProps = properties.filter(p => !p.isDeleted);
+
+      document.getElementById('list-count').textContent = `${activeProps.length}件`;
       listEl.innerHTML = '';
 
-      if (activeProperties.length === 0) {
-        listEl.innerHTML = '<div class="text-center py-10 text-slate-400 text-sm"><i class="fa-solid fa-map-location-dot text-4xl mb-3 opacity-50 block"></i>登録された物件はありません</div>';
+      if (activeProps.length === 0) {
+        listEl.innerHTML = '<div class="text-center py-20 text-gray-400 text-sm flex flex-col items-center"><i class="fa-solid fa-box-open text-4xl mb-4 opacity-30"></i>登録された物件はありません</div>';
         return;
       }
 
-      const sorted = [...activeProperties].sort((a, b) => {
-        const timeA = a.timestamp || Number(a.id);
-        const timeB = b.timestamp || Number(b.id);
-        return timeB - timeA;
-      });
+      const sorted = [...activeProps].sort((a, b) => b.timestamp - a.timestamp);
 
       sorted.forEach(p => {
-        listEl.appendChild(createCardHTML(p, false));
+        listEl.appendChild(createCardHTML(p));
       });
+      initSwipeLogic();
     }
 
-    function renderTrash() {
-      const listEl = document.getElementById('trash-list');
-      const deletedProperties = properties.filter(p => p.isDeleted);
-      listEl.innerHTML = '';
-
-      if (deletedProperties.length === 0) {
-        listEl.innerHTML = '<div class="text-center py-10 text-slate-400 text-sm"><i class="fa-solid fa-trash-can text-4xl mb-3 opacity-30 block"></i>ゴミ箱は空です</div>';
-        return;
-      }
-
-      const sorted = [...deletedProperties].sort((a, b) => b.timestamp - a.timestamp);
-      
-      sorted.forEach(p => {
-        listEl.appendChild(createCardHTML(p, true));
-      });
-    }
-
-    function createCardHTML(p, isTrash) {
-      let badgeColor = 'bg-slate-100 text-slate-600';
-      if (p.type === 'ロードサイド物件') badgeColor = 'bg-emerald-100 text-emerald-700';
-      if (p.type === 'ビルイン物件') badgeColor = 'bg-blue-100 text-blue-700';
-      if (p.type === '地権者') badgeColor = 'bg-amber-100 text-amber-700';
-      
-      const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
+    function createCardHTML(p) {
+      const color = typeColors[p.type] || typeColors['未分類'];
       
       const card = document.createElement('div');
+      card.className = 'relative overflow-hidden bg-red-500 border-b border-gray-100 last:border-b-0 group';
       
-      if (isTrash) {
-        card.className = 'bg-white rounded-2xl p-4 shadow-sm border border-zinc-200 opacity-60 grayscale-[50%]';
-        card.innerHTML = `
-          <div class="flex justify-between items-start mb-1.5">
-            <h3 class="font-bold text-slate-800 text-base leading-tight flex-1 pr-2 line-through">${esc(p.name)}</h3>
-            <span class="text-[10px] font-bold px-2 py-1 rounded-md whitespace-nowrap ${badgeColor}">${esc(p.type)}</span>
-          </div>
-          <div class="text-[10px] text-slate-400 mb-2">登録: ${esc(p.createdAt)}</div>
-          
-          <div class="flex justify-end items-center mt-3 pt-3 border-t border-zinc-100 space-x-2">
-            <button onclick="window.restoreProperty('${p.id}')" class="px-4 py-2 bg-slate-800 text-white font-bold rounded-lg text-[11px] shadow-sm active:scale-95 transition-transform">
-              <i class="fa-solid fa-arrow-rotate-left mr-1"></i>復元
-            </button>
-            <button onclick="window.permanentlyDeleteProperty('${p.id}')" class="px-4 py-2 bg-red-100 text-red-600 font-bold rounded-lg text-[11px] hover:bg-red-200 transition-colors">
-              <i class="fa-solid fa-trash-can mr-1"></i>完全削除
-            </button>
-          </div>
-        `;
-      } else {
-        card.className = 'relative overflow-hidden rounded-2xl bg-red-500 shadow-sm border border-zinc-200';
-        card.innerHTML = `
-          <div class="absolute inset-y-0 right-0 w-20 flex items-center justify-center text-white z-0">
-            <button onclick="window.moveToTrash('${p.id}')" class="w-full h-full flex flex-col items-center justify-center active:bg-red-600 transition-colors cursor-pointer">
-              <i class="fa-solid fa-trash mb-1 text-lg pointer-events-none"></i><span class="text-[10px] font-bold pointer-events-none">削除</span>
-            </button>
-          </div>
-          <div class="bg-white p-4 relative z-10 swipe-content w-full h-full transform transition-transform duration-200">
-            <div class="flex justify-between items-start mb-1.5">
-              <h3 class="font-bold text-slate-800 text-base leading-tight flex-1 pr-2">${esc(p.name)}</h3>
-              <span class="text-[10px] font-bold px-2 py-1 rounded-md whitespace-nowrap ${badgeColor}">${esc(p.type)}</span>
-            </div>
-            
-            <div class="text-[10px] text-slate-400 mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span><i class="fa-regular fa-calendar-plus mr-1"></i>登録: ${esc(p.createdAt)}</span>
-              ${p.updatedAt ? `<span class="text-slate-500 font-medium"><i class="fa-solid fa-clock-rotate-left mr-1"></i>更新: ${esc(p.updatedAt)}</span>` : ''}
-            </div>
-
-            <div class="text-xs text-slate-500 mb-2 flex items-start">
-              <i class="fa-solid fa-location-dot mt-0.5 mr-1.5 w-3 text-center"></i>
-              <span class="leading-tight">${esc(p.address)}</span>
-            </div>
-            ${p.memo ? `<div class="text-xs text-slate-600 bg-zinc-50 p-2.5 rounded-lg mb-3 leading-relaxed border border-zinc-100"><i class="fa-regular fa-comment-dots mr-1.5 opacity-70"></i>${esc(p.memo)}</div>` : ''}
-            
-            <div class="flex justify-between items-center mt-3 pt-3 border-t border-zinc-100">
-              <label class="flex items-center cursor-pointer group py-1 pr-2">
-                <input type="checkbox" onchange="window.toggleFlag('${p.id}')" class="hidden" ${p.flagged ? 'checked' : ''}>
-                <div class="w-6 h-6 rounded border flex items-center justify-center transition-colors ${p.flagged ? 'bg-red-50 border-red-200' : 'bg-zinc-100 border-zinc-200 group-hover:bg-zinc-200'}">
-                  <i class="fa-solid fa-flag text-[10px] ${p.flagged ? 'text-red-500' : 'text-slate-300'}"></i>
-                </div>
-                <span class="text-[11px] font-bold ml-1.5 ${p.flagged ? 'text-red-600' : 'text-slate-500 group-hover:text-slate-700'}">フラッグ</span>
-              </label>
-
-              <div class="flex space-x-1">
-                <a href="${routeUrl}" target="_blank" class="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors">
-                  <i class="fa-solid fa-route"></i>
-                </a>
-                <button onclick="window.moveToProperty(${p.lat}, ${p.lng})" class="w-9 h-9 rounded-full bg-zinc-100 text-slate-600 flex items-center justify-center hover:bg-zinc-200 transition-colors">
-                  <i class="fa-solid fa-map"></i>
-                </button>
-                <button onclick="window.openFormModal('${p.id}')" class="w-9 h-9 rounded-full bg-zinc-100 text-slate-600 flex items-center justify-center hover:bg-zinc-200 transition-colors">
-                  <i class="fa-solid fa-pen"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-        `;
+      let dateHtml = `<span class="mr-3"><i class="fa-regular fa-calendar mr-1"></i>作成: ${p.createdAt.split(' ')[0]}</span>`;
+      if (p.updatedAt) {
+          dateHtml += `<span class="text-blue-500"><i class="fa-solid fa-clock-rotate-left mr-1"></i>更新: ${p.updatedAt.split(' ')[0]}</span>`;
       }
+
+      card.innerHTML = `
+        <div class="absolute inset-y-0 right-0 w-24 flex items-center justify-center text-white z-0 pointer-events-auto">
+          <button onclick="window.moveToTrash('${p.id}')" class="w-full h-full flex flex-col items-center justify-center bg-red-500 hover:bg-red-600 transition-colors cursor-pointer">
+            <i class="fa-solid fa-trash mb-1 text-xl"></i><span class="text-xs font-bold">削除</span>
+          </button>
+        </div>
+        <div class="bg-white p-4 relative z-10 swipe-content w-full h-full transform transition-transform duration-200 flex items-start pointer-events-auto" data-id="${p.id}">
+          <div class="w-10 h-10 rounded-full flex flex-shrink-0 items-center justify-center text-white mr-4 mt-1 shadow-sm border border-white" style="background-color: ${color}">
+             <i class="fa-solid fa-location-dot text-lg"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex justify-between items-start mb-1">
+              <h3 class="font-bold text-gray-800 text-base leading-tight truncate pr-2">${esc(p.name)}</h3>
+              <button onclick="window.toggleFlag('${p.id}')" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 border border-gray-200 transition-colors ${p.flagged ? 'bg-red-50 border-red-200' : 'bg-gray-50 hover:bg-gray-100'}">
+                 <i class="fa-solid fa-flag text-sm ${p.flagged ? 'text-red-500' : 'text-gray-300'}"></i>
+              </button>
+            </div>
+            
+            <div class="text-[11px] text-gray-500 mb-2 flex flex-wrap">
+              ${dateHtml}
+            </div>
+
+            <div class="text-[11px] text-gray-600 mb-3 truncate flex items-center bg-gray-50 p-1.5 rounded-lg border border-gray-100">
+              <i class="fa-solid fa-location-dot text-gray-400 mr-1.5 ml-1"></i>${esc(p.address)}
+            </div>
+            
+            <div class="flex justify-end space-x-2">
+              <button onclick="window.moveToProperty(${p.lat}, ${p.lng})" class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-bold text-xs hover:bg-gray-200 transition-colors flex items-center">
+                <i class="fa-solid fa-map mr-1.5"></i>地図
+              </button>
+              <button onclick="window.openFormModal('${p.id}')" class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-bold text-xs hover:bg-gray-200 transition-colors flex items-center">
+                <i class="fa-solid fa-pen mr-1.5"></i>編集
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
       return card;
     }
 
     function initSwipeLogic() {
       let touchStartX = 0;
-      let touchStartY = 0;
       let currentSwipeContent = null;
       let currentTranslateX = 0;
       let isScrolling = false;
+      const threshold = -40;
+      const maxSwipe = -96; // matches w-24
 
       function handleDragStart(e) {
-        // [修正部分] ゴミ箱（削除）ボタンへのタップを検知した場合は、カードを閉じる処理をスキップする
-        if (e.target.closest('button[onclick^="window.moveToTrash"]')) {
-          return;
-        }
-
+        if (e.target.closest('button, a')) return;
+        
         const swipeEl = e.target.closest('.swipe-content');
         
-        // タップしたカード以外の「開いているカード」を閉じる
         document.querySelectorAll('.swipe-content').forEach(el => {
           if (el !== swipeEl && el.dataset.open === 'true') {
             el.style.transform = 'translateX(0)';
@@ -824,10 +781,8 @@
         });
 
         if (!swipeEl) return;
-        if (e.type === 'mousedown' && e.target.closest('button, a, input, label')) return;
-
+        
         touchStartX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
-        touchStartY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
         currentSwipeContent = swipeEl;
         isScrolling = false;
         
@@ -840,25 +795,16 @@
         if (!currentSwipeContent) return;
         
         const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
-        const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
         const deltaX = clientX - touchStartX;
-        const deltaY = clientY - touchStartY;
 
-        if (!isScrolling) {
-          if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 5) {
-            isScrolling = true;
-          }
-        }
-        if (isScrolling) {
-          currentSwipeContent = null;
-          return;
-        }
+        if(Math.abs(deltaX) < 10 && e.type === 'touchmove') return;
 
         let newX = currentTranslateX + deltaX;
         if (newX > 0) newX = 0; 
-        if (newX < -80) newX = -80 - (Math.abs(newX + 80) * 0.2); 
+        if (newX < maxSwipe) newX = maxSwipe - (Math.abs(newX - maxSwipe) * 0.2); 
 
         currentSwipeContent.style.transform = `translateX(${newX}px)`;
+        e.preventDefault(); 
       }
 
       function handleDragEnd() {
@@ -867,52 +813,161 @@
         const match = currentSwipeContent.style.transform.match(/translateX\(([-\d.]+)px\)/);
         const currentX = match ? parseFloat(match[1]) : 0;
 
-        if (currentX < -40) {
-          currentSwipeContent.style.transform = 'translateX(-80px)';
+        if (currentX < threshold) {
+          currentSwipeContent.style.transform = `translateX(${maxSwipe}px)`;
           currentSwipeContent.dataset.open = 'true';
         } else {
           currentSwipeContent.style.transform = 'translateX(0)';
           currentSwipeContent.dataset.open = 'false';
         }
-        currentSwipeContent = null;
+        
+        // setTimeout ensures buttons behind are clickable before resetting state variable
+        setTimeout(() => { currentSwipeContent = null; }, 50);
       }
 
-      document.addEventListener('touchstart', handleDragStart, { passive: true });
-      document.addEventListener('touchmove', handleDragMove, { passive: true });
-      document.addEventListener('touchend', handleDragEnd);
-
-      document.addEventListener('mousedown', handleDragStart);
-      document.addEventListener('mousemove', e => {
-        if (currentSwipeContent && e.buttons !== 1) { 
-          handleDragEnd();
-          return;
-        }
-        handleDragMove(e);
-      });
-      document.addEventListener('mouseup', handleDragEnd);
+      const listContainer = document.getElementById('view-list');
+      if(listContainer._swipeInitialized) return; 
+      
+      listContainer.addEventListener('touchstart', handleDragStart, { passive: true });
+      listContainer.addEventListener('touchmove', handleDragMove, { passive: false });
+      listContainer.addEventListener('touchend', handleDragEnd);
+      listContainer._swipeInitialized = true;
     }
 
-    window.moveToProperty = function(lat, lng) {
-      window.switchTab('map');
-      map.setView([lat, lng], 17);
+    window.toggleFlag = function(id) {
+       const idx = properties.findIndex(p => p.id === id);
+       if (idx !== -1) {
+          properties[idx].flagged = !properties[idx].flagged;
+          saveToLocal();
+          renderList();
+          renderMapMarkers();
+       }
     };
 
-    window.exportData = function(type) {
-      const activeProperties = properties.filter(p => !p.isDeleted);
-      if (activeProperties.length === 0) {
-        customAlert('出力するデータがありません。\n（ゴミ箱内のデータは出力されません）');
+    window.moveToProperty = function(lat, lng) {
+      window.switchMainView('map');
+      map.flyTo([lat, lng], 17, {duration: 0.5});
+    };
+
+    function saveToLocal() {
+      localStorage.setItem('BukkenMemo_properties', JSON.stringify(properties));
+    }
+
+    window.moveToTrash = function(id) {
+      const idx = properties.findIndex(p => p.id === id);
+      if (idx !== -1) {
+        properties[idx].isDeleted = true;
+        saveToLocal();
+        renderList();
+        renderMapMarkers();
+        if(map) map.closePopup();
+      }
+    };
+
+    window.toggleSettingsMenu = function() {
+      const menu = document.getElementById('settings-menu');
+      menu.classList.toggle('hidden');
+    };
+    
+    document.addEventListener('click', function(e) {
+      if(!e.target.closest('#settings-menu') && !e.target.closest('button[onclick="window.toggleSettingsMenu()"]')) {
+        document.getElementById('settings-menu').classList.add('hidden');
+      }
+      if(!e.target.closest('#layer-menu') && !e.target.closest('button[onclick="window.toggleLayerMenu()"]')) {
+        document.getElementById('layer-menu').classList.add('hidden');
+      }
+    });
+
+    window.showTrashModal = function() {
+      document.getElementById('settings-menu').classList.add('hidden');
+      const modal = document.getElementById('trash-modal');
+      const content = document.getElementById('trash-content');
+      renderTrashList();
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        content.classList.remove('scale-95');
+      }, 10);
+    };
+    
+    window.hideTrashModal = function() {
+      const modal = document.getElementById('trash-modal');
+      const content = document.getElementById('trash-content');
+      modal.classList.add('opacity-0');
+      content.classList.add('scale-95');
+      setTimeout(() => modal.classList.add('hidden'), 300);
+    };
+
+    function renderTrashList() {
+      const listEl = document.getElementById('trash-list');
+      const deletedProps = properties.filter(p => p.isDeleted);
+      listEl.innerHTML = '';
+
+      if (deletedProps.length === 0) {
+        listEl.innerHTML = '<div class="text-center py-10 text-gray-400 text-sm">ゴミ箱は空です</div>';
         return;
       }
+
+      deletedProps.sort((a, b) => b.timestamp - a.timestamp).forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'bg-white p-4 rounded-xl mb-3 flex justify-between items-center shadow-sm border border-gray-100';
+        div.innerHTML = `
+          <div class="flex-1 min-w-0 pr-4">
+             <h4 class="font-bold text-gray-500 text-sm truncate line-through mb-1">${esc(p.name)}</h4>
+             <p class="text-[10px] text-gray-400 truncate">${esc(p.address)}</p>
+          </div>
+          <div class="flex space-x-2 flex-shrink-0">
+             <button onclick="window.restoreProperty('${p.id}')" class="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl shadow-sm flex items-center justify-center hover:bg-blue-100 transition-colors" title="復元"><i class="fa-solid fa-arrow-rotate-left"></i></button>
+             <button onclick="window.permanentlyDeleteProperty('${p.id}')" class="w-10 h-10 bg-red-50 text-red-500 rounded-xl shadow-sm flex items-center justify-center hover:bg-red-100 transition-colors" title="完全削除"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        `;
+        listEl.appendChild(div);
+      });
+    }
+
+    window.restoreProperty = function(id) {
+      const idx = properties.findIndex(p => p.id === id);
+      if (idx !== -1) {
+        properties[idx].isDeleted = false;
+        saveToLocal();
+        renderTrashList();
+        renderList();
+        renderMapMarkers();
+      }
+    };
+
+    window.permanentlyDeleteProperty = function(id) {
+      customConfirm('完全に削除しますか？復元できません。', () => {
+        properties = properties.filter(p => p.id !== id);
+        saveToLocal();
+        renderTrashList();
+      });
+    };
+
+    window.emptyTrash = function() {
+      if(properties.filter(p => p.isDeleted).length === 0) return;
+      customConfirm('ゴミ箱の中身をすべて完全に削除しますか？', () => {
+        properties = properties.filter(p => !p.isDeleted);
+        saveToLocal();
+        renderTrashList();
+      });
+    };
+
+    window.exportData = function(exportType) {
+      document.getElementById('settings-menu').classList.add('hidden');
+      const activeProps = properties.filter(p => !p.isDeleted);
+      if (activeProps.length === 0) return customAlert('出力するデータがありません。');
+      
       let content, mimeType, filename;
       const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
 
-      if (type === 'json') {
-        content = JSON.stringify(activeProperties, null, 2);
+      if (exportType === 'json') {
+        content = JSON.stringify(activeProps, null, 2);
         mimeType = 'application/json';
         filename = `BukkenMemo_${dateStr}.json`;
-      } else if (type === 'csv') {
-        const headers = ['ID', '登録日時', '更新日時', '物件名', '物件種別', '住所', '緯度', '経度', 'メモ', 'フラッグ'];
-        const rows = activeProperties.map(p => [
+      } else if (exportType === 'csv') {
+        const headers = ['ID', '作成日時', '更新日時', '物件名', '種別', '住所', '緯度', '経度', 'メモ', 'フラッグ'];
+        const rows = activeProps.map(p => [
           `"${p.id}"`, `"${p.createdAt}"`, `"${p.updatedAt || ''}"`, `"${(p.name || '').replace(/"/g, '""')}"`, 
           `"${p.type}"`, `"${(p.address || '').replace(/"/g, '""')}"`, `"${p.lat}"`, `"${p.lng}"`,
           `"${(p.memo || '').replace(/"/g, '""')}"`, `"${p.flagged ? 'TRUE' : 'FALSE'}"`
@@ -932,6 +987,7 @@
     };
 
     window.importData = function(event) {
+      document.getElementById('settings-menu').classList.add('hidden');
       const file = event.target.files[0];
       if (!file) return;
 
@@ -939,26 +995,24 @@
       reader.onload = function(e) {
         try {
           const data = JSON.parse(e.target.result);
-          if (!Array.isArray(data)) throw new Error("Invalid format");
-          
-          let importedCount = 0;
+          let count = 0;
           data.forEach(item => {
             if (item.id && typeof item.lat === 'number' && typeof item.lng === 'number' && item.name) {
               if (!properties.find(p => p.id === item.id)) {
                 item.isDeleted = false;
                 properties.push(item);
-                importedCount++;
+                count++;
               }
             }
           });
-
-          if(importedCount > 0) {
+          
+          if(count > 0) {
             saveToLocal();
             renderList();
             renderMapMarkers();
-            customAlert(`${importedCount}件のデータをインポートしました！`);
+            customAlert(`データを復元しました。\n新規追加: ${count}件`);
           } else {
-            customAlert('新しいデータはありませんでした。\n（重複、または名前等の必須項目が欠損しているデータ）');
+            customAlert('新しいデータはありませんでした。');
           }
         } catch (err) {
           customAlert("ファイルの読み込みに失敗しました。\n正しいJSONファイルを選択してください。");
@@ -966,50 +1020,6 @@
         event.target.value = ''; 
       };
       reader.readAsText(file);
-    };
-
-    window.toggleFlag = function(id) {
-      const idx = properties.findIndex(p => p.id === id);
-      if (idx !== -1) {
-        properties[idx].flagged = !properties[idx].flagged;
-        saveToLocal();
-        renderList();
-        renderMapMarkers();
-      }
-    };
-
-    window.searchAddress = async function() {
-      const input = document.getElementById('map-search-input');
-      const btn = document.getElementById('map-search-btn');
-      const query = input.value.trim();
-      if (!query) return;
-
-      const originalIcon = btn.innerHTML;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-      input.disabled = true;
-
-      try {
-        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&limit=1&accept-language=ja`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('Search failed');
-        const data = await res.json();
-
-        if (data && data.length > 0) {
-          const lat = parseFloat(data[0].lat);
-          const lng = parseFloat(data[0].lon);
-          map.setView([lat, lng], 16);
-          marker.setLatLng([lat, lng]);
-          updateCurrentLocation(lat, lng);
-          input.blur(); 
-        } else {
-          customAlert('「' + query + '」が見つかりませんでした。\n市町村名などを加えて再度お試しください。');
-        }
-      } catch (error) {
-        customAlert('検索エラーが発生しました。\nネットワーク環境をご確認ください。');
-      } finally {
-        btn.innerHTML = originalIcon;
-        input.disabled = false;
-      }
     };
   </script>
 </body>
