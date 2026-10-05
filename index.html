@@ -15,7 +15,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
-  <!-- CDNを変更してプレビュー環境でも確実に動作するように修正 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 
@@ -971,7 +970,7 @@
       if (exportType === 'json') {
         content = JSON.stringify(activeProps, null, 2);
         mimeType = 'application/json';
-        filename = `bukken memo${dateStr}.json`;
+        filename = `BukkenMemo_${dateStr}.json`;
       } else if (exportType === 'csv') {
         const headers = ['ID', '作成日時', '更新日時', '物件名', '種別', '住所', '緯度', '経度', 'メモ', 'フラッグ'];
         const rows = activeProps.map(p => [
@@ -981,11 +980,15 @@
         ]);
         content = "\uFEFF" + [headers.map(h => `"${h}"`), ...rows].map(e => e.join(",")).join("\n");
         mimeType = 'text/csv;charset=utf-8;';
-        filename = `bukken memo${dateStr}.csv`;
+        filename = `BukkenMemo_${dateStr}.csv`;
       }
 
-      const blob = new Blob([content], { type: mimeType });
-      const url = URL.createObjectURL(blob);
+      // BlobではなくFileオブジェクトを生成し、lastModified（更新時刻）を明示的に現在時刻に設定
+      const file = new File([content], filename, {
+        type: mimeType,
+        lastModified: Date.now()
+      });
+      const url = URL.createObjectURL(file);
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;
@@ -993,7 +996,6 @@
       document.body.appendChild(a);
       a.click();
       
-      // モバイルブラウザで確実にダウンロード処理を行わせるため遅延解放
       setTimeout(() => {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
