@@ -946,7 +946,7 @@
     };
 
     window.emptyTrash = function() {
-      if(properties.filter(p => p.isDeleted).length === 0) return;
+      if(properties.filter(p => !p.isDeleted).length === 0) return;
       customConfirm('ゴミ箱の中身をすべて完全に削除しますか？', () => {
         properties = properties.filter(p => !p.isDeleted);
         saveToLocal();
@@ -960,12 +960,18 @@
       if (activeProps.length === 0) return customAlert('出力するデータがありません。');
       
       let content, mimeType, filename;
-      const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+      
+      // 端末の現在日時（ローカル時間）から年月日を取得
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}${mm}${dd}`;
 
       if (exportType === 'json') {
         content = JSON.stringify(activeProps, null, 2);
         mimeType = 'application/json';
-        filename = `BukkenMemo_${dateStr}.json`;
+        filename = `bukken memo${dateStr}.json`;
       } else if (exportType === 'csv') {
         const headers = ['ID', '作成日時', '更新日時', '物件名', '種別', '住所', '緯度', '経度', 'メモ', 'フラッグ'];
         const rows = activeProps.map(p => [
@@ -975,7 +981,7 @@
         ]);
         content = "\uFEFF" + [headers.map(h => `"${h}"`), ...rows].map(e => e.join(",")).join("\n");
         mimeType = 'text/csv;charset=utf-8;';
-        filename = `BukkenMemo_${dateStr}.csv`;
+        filename = `bukken memo${dateStr}.csv`;
       }
 
       const blob = new Blob([content], { type: mimeType });
@@ -983,8 +989,15 @@
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      
+      // モバイルブラウザで確実にダウンロード処理を行わせるため遅延解放
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 1000);
     };
 
     window.importData = function(event) {
