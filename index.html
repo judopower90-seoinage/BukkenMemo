@@ -199,6 +199,55 @@
     </div>
   </nav>
 
+  <!-- Detail Modal -->
+  <div id="detail-modal" class="fixed inset-0 bg-black/60 z-50 hidden opacity-0 transition-opacity duration-300 flex items-end sm:items-center justify-center">
+    <div class="bg-white w-full sm:w-[500px] max-h-[85vh] rounded-t-3xl sm:rounded-2xl flex flex-col shadow-2xl transform translate-y-full sm:translate-y-0 transition-transform duration-300" id="detail-content">
+      <div class="flex justify-between items-center p-4 border-b border-gray-100">
+        <span id="detail-type-badge" class="px-3 py-1 rounded-full text-xs font-bold text-white bg-blue-600">種別</span>
+        <button onclick="window.closeDetailModal()" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto flex-1 space-y-4">
+        <div>
+          <div class="flex items-start justify-between">
+            <h3 class="text-xl font-bold text-gray-900 leading-snug break-words" id="detail-name">物件名</h3>
+            <span id="detail-flag-badge" class="ml-2 hidden text-red-500 text-sm py-1 shrink-0"><i class="fa-solid fa-flag mr-1"></i>注目</span>
+          </div>
+          <div class="text-xs text-gray-400 mt-1 flex flex-wrap gap-x-3" id="detail-dates"></div>
+        </div>
+
+        <div class="bg-gray-50 p-3.5 rounded-xl border border-gray-100">
+          <p class="text-xs font-bold text-gray-400 mb-1 flex items-center"><i class="fa-solid fa-location-dot mr-1.5 text-blue-600"></i>住所</p>
+          <p id="detail-address" class="text-sm text-gray-800 break-words leading-relaxed"></p>
+        </div>
+
+        <div class="bg-gray-50 p-3.5 rounded-xl border border-gray-100">
+          <p class="text-xs font-bold text-gray-400 mb-1 flex items-center"><i class="fa-solid fa-comment-dots mr-1.5 text-blue-600"></i>メモ</p>
+          <p id="detail-memo" class="text-sm text-gray-800 break-words whitespace-pre-wrap leading-relaxed min-h-[40px]"></p>
+        </div>
+      </div>
+
+      <div class="p-4 border-t border-gray-100 bg-white flex flex-col space-y-2 pb-[calc(env(safe-area-inset-bottom,0px)+16px)]">
+        <a id="detail-route-btn" href="#" target="_blank" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-colors flex justify-center items-center text-sm" style="text-decoration:none; color:#ffffff !important;">
+          <i class="fa-solid fa-route mr-2" style="color:#ffffff !important;"></i>Google マップでルート案内
+        </a>
+        <div class="flex space-x-2">
+          <button id="detail-map-btn" class="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-colors flex justify-center items-center">
+            <i class="fa-solid fa-map-location-dot mr-1.5 text-blue-600"></i>地図で表示
+          </button>
+          <button id="detail-edit-btn" class="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-colors flex justify-center items-center">
+            <i class="fa-solid fa-pen mr-1.5 text-gray-600"></i>編集
+          </button>
+          <button id="detail-delete-btn" class="w-11 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs transition-colors flex justify-center items-center shrink-0">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Registration/Edit Modal -->
   <div id="form-modal" class="fixed inset-0 bg-black/60 z-50 hidden opacity-0 transition-opacity duration-300 flex items-end sm:items-center justify-center">
     <div class="bg-white w-full sm:w-[500px] h-[90vh] sm:h-auto sm:max-h-[90vh] rounded-t-3xl sm:rounded-2xl flex flex-col shadow-2xl transform translate-y-full sm:translate-y-0 transition-transform duration-300" id="form-content">
@@ -726,14 +775,14 @@
             <i class="fa-solid fa-trash mb-1 text-xl"></i><span class="text-xs font-bold">削除</span>
           </button>
         </div>
-        <div class="bg-white p-4 relative z-10 swipe-content w-full h-full transform transition-transform duration-200 flex items-start pointer-events-auto" data-id="${p.id}">
+        <div class="bg-white p-4 relative z-10 swipe-content w-full h-full transform transition-transform duration-200 flex items-start pointer-events-auto cursor-pointer active:bg-gray-50 select-none" data-id="${p.id}" onclick="window.handleCardClick(event, '${p.id}')">
           <div class="w-10 h-10 rounded-full flex flex-shrink-0 items-center justify-center text-white mr-4 mt-1 shadow-sm border border-white" style="background-color: ${color}">
              <i class="fa-solid fa-location-dot text-lg"></i>
           </div>
           <div class="flex-1 min-w-0">
             <div class="flex justify-between items-start mb-1">
               <h3 class="font-bold text-gray-800 text-base leading-tight truncate pr-2">${esc(p.name)}</h3>
-              <button onclick="window.toggleFlag('${p.id}')" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 border border-gray-200 transition-colors ${p.flagged ? 'bg-red-50 border-red-200' : 'bg-gray-50 hover:bg-gray-100'}">
+              <button onclick="event.stopPropagation(); window.toggleFlag('${p.id}')" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 border border-gray-200 transition-colors ${p.flagged ? 'bg-red-50 border-red-200' : 'bg-gray-50 hover:bg-gray-100'}">
                  <i class="fa-solid fa-flag text-sm ${p.flagged ? 'text-red-500' : 'text-gray-300'}"></i>
               </button>
             </div>
@@ -747,10 +796,10 @@
             </div>
             
             <div class="flex justify-end space-x-2">
-              <button onclick="window.moveToProperty(${p.lat}, ${p.lng})" class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-bold text-xs hover:bg-gray-200 transition-colors flex items-center">
+              <button onclick="event.stopPropagation(); window.moveToProperty(${p.lat}, ${p.lng})" class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-bold text-xs hover:bg-gray-200 transition-colors flex items-center">
                 <i class="fa-solid fa-map mr-1.5"></i>地図
               </button>
-              <button onclick="window.openFormModal('${p.id}')" class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-bold text-xs hover:bg-gray-200 transition-colors flex items-center">
+              <button onclick="event.stopPropagation(); window.openFormModal('${p.id}')" class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-bold text-xs hover:bg-gray-200 transition-colors flex items-center">
                 <i class="fa-solid fa-pen mr-1.5"></i>編集
               </button>
             </div>
@@ -760,17 +809,96 @@
       return card;
     }
 
+    let isCardSwiping = false;
+
+    window.handleCardClick = function(event, id) {
+      if (isCardSwiping) return;
+      if (event.target.closest('button, a')) return;
+      
+      const swipeEl = event.currentTarget;
+      if (swipeEl && swipeEl.dataset.open === 'true') {
+        swipeEl.style.transform = 'translateX(0)';
+        swipeEl.dataset.open = 'false';
+        return;
+      }
+      
+      window.openDetailModal(id);
+    };
+
+    window.openDetailModal = function(id) {
+      const p = properties.find(x => x.id === id);
+      if (!p) return;
+
+      const modal = document.getElementById('detail-modal');
+      const content = document.getElementById('detail-content');
+
+      const color = typeColors[p.type] || typeColors['未分類'];
+      const badge = document.getElementById('detail-type-badge');
+      badge.textContent = p.type || '未分類';
+      badge.style.backgroundColor = color;
+
+      document.getElementById('detail-name').textContent = p.name || '名称未設定';
+      
+      const flagBadge = document.getElementById('detail-flag-badge');
+      if (p.flagged) {
+        flagBadge.classList.remove('hidden');
+      } else {
+        flagBadge.classList.add('hidden');
+      }
+
+      let dateHtml = `<span><i class="fa-regular fa-calendar mr-1"></i>作成: ${p.createdAt || '-'}</span>`;
+      if (p.updatedAt) {
+        dateHtml += `<span class="text-blue-600"><i class="fa-solid fa-clock-rotate-left mr-1"></i>更新: ${p.updatedAt}</span>`;
+      }
+      document.getElementById('detail-dates').innerHTML = dateHtml;
+
+      document.getElementById('detail-address').textContent = p.address || '住所情報なし';
+      document.getElementById('detail-memo').textContent = p.memo || 'メモの登録はありません';
+
+      const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
+      document.getElementById('detail-route-btn').setAttribute('href', routeUrl);
+
+      document.getElementById('detail-map-btn').onclick = () => {
+        window.closeDetailModal();
+        window.moveToProperty(p.lat, p.lng);
+      };
+
+      document.getElementById('detail-edit-btn').onclick = () => {
+        window.closeDetailModal();
+        window.openFormModal(p.id);
+      };
+
+      document.getElementById('detail-delete-btn').onclick = () => {
+        window.closeDetailModal();
+        window.moveToTrash(p.id);
+      };
+
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        content.classList.remove('translate-y-full');
+      }, 10);
+    };
+
+    window.closeDetailModal = function() {
+      const modal = document.getElementById('detail-modal');
+      const content = document.getElementById('detail-content');
+      modal.classList.add('opacity-0');
+      content.classList.add('translate-y-full');
+      setTimeout(() => { modal.classList.add('hidden'); }, 300);
+    };
+
     function initSwipeLogic() {
       let touchStartX = 0;
       let currentSwipeContent = null;
       let currentTranslateX = 0;
-      let isScrolling = false;
       const threshold = -40;
       const maxSwipe = -96; // matches w-24
 
       function handleDragStart(e) {
         if (e.target.closest('button, a')) return;
         
+        isCardSwiping = false;
         const swipeEl = e.target.closest('.swipe-content');
         
         document.querySelectorAll('.swipe-content').forEach(el => {
@@ -784,7 +912,6 @@
         
         touchStartX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
         currentSwipeContent = swipeEl;
-        isScrolling = false;
         
         currentSwipeContent.style.transition = 'none';
         const match = currentSwipeContent.style.transform.match(/translateX\(([-\d.]+)px\)/);
@@ -796,6 +923,10 @@
         
         const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
         const deltaX = clientX - touchStartX;
+
+        if (Math.abs(deltaX) > 10) {
+          isCardSwiping = true;
+        }
 
         if(Math.abs(deltaX) < 10 && e.type === 'touchmove') return;
 
@@ -821,8 +952,10 @@
           currentSwipeContent.dataset.open = 'false';
         }
         
-        // setTimeout ensures buttons behind are clickable before resetting state variable
-        setTimeout(() => { currentSwipeContent = null; }, 50);
+        setTimeout(() => {
+          currentSwipeContent = null;
+          isCardSwiping = false;
+        }, 100);
       }
 
       const listContainer = document.getElementById('view-list');
