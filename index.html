@@ -138,11 +138,11 @@
       <!-- Layer Menu -->
       <div id="layer-menu" class="absolute top-18 right-4 bg-white rounded-xl shadow-xl py-2 z-[1001] hidden border border-gray-100 w-48 pointer-events-auto">
         <div class="px-4 py-2 text-xs font-bold text-gray-400 border-b border-gray-50">地図の種類</div>
-        <button onclick="window.switchLayer('gsi')" class="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between">
-          <span>国土地理院 (標準)</span><i class="fa-solid fa-check text-blue-600 hidden layer-check-gsi"></i>
-        </button>
         <button onclick="window.switchLayer('google')" class="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between">
           <span>Google マップ</span><i class="fa-solid fa-check text-blue-600 hidden layer-check-google"></i>
+        </button>
+        <button onclick="window.switchLayer('gsi')" class="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between">
+          <span>国土地理院</span><i class="fa-solid fa-check text-blue-600 hidden layer-check-gsi"></i>
         </button>
         <button onclick="window.switchLayer('googleSat')" class="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between">
           <span>航空写真</span><i class="fa-solid fa-check text-blue-600 hidden layer-check-googleSat"></i>
@@ -384,7 +384,7 @@
     let geoTimer = null;
     
     let mapLayers = {};
-    let currentLayer = 'gsi';
+    let currentLayer = 'google';
 
     const typeColors = {
       'ロードサイド物件': '#3b82f6', // blue
