@@ -218,6 +218,11 @@
           <div class="text-xs text-gray-400 mt-1 flex flex-wrap gap-x-3" id="detail-dates"></div>
         </div>
 
+        <div id="detail-area-container" class="bg-gray-50 p-3.5 rounded-xl border border-gray-100 hidden">
+          <p class="text-xs font-bold text-gray-400 mb-1 flex items-center"><i class="fa-solid fa-ruler-combined mr-1.5 text-blue-600"></i>面積</p>
+          <p id="detail-area" class="text-sm font-bold text-gray-800 break-words leading-relaxed"></p>
+        </div>
+
         <div class="bg-gray-50 p-3.5 rounded-xl border border-gray-100">
           <p class="text-xs font-bold text-gray-400 mb-1 flex items-center"><i class="fa-solid fa-location-dot mr-1.5 text-blue-600"></i>住所</p>
           <p id="detail-address" class="text-sm text-gray-800 break-words leading-relaxed"></p>
@@ -281,6 +286,14 @@
             <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
               <i class="fa-solid fa-chevron-down text-xs"></i>
             </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-500 mb-1.5">面積（坪）</label>
+          <div class="relative flex items-center">
+            <input type="number" step="any" id="form-area" placeholder="例: 45.5" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 pr-12">
+            <span class="absolute right-4 text-sm font-bold text-gray-400 pointer-events-none">坪</span>
           </div>
         </div>
 
@@ -669,6 +682,7 @@
           document.getElementById('form-address').value = p.address || '';
           document.getElementById('form-memo').value = p.memo || '';
           document.getElementById('form-type').value = p.type || '未分類';
+          document.getElementById('form-area').value = p.area || '';
         }
       } else {
         document.getElementById('modal-title').textContent = '新しく登録';
@@ -679,6 +693,7 @@
         document.getElementById('form-address').value = currentLocation.address;
         document.getElementById('form-memo').value = '';
         document.getElementById('form-type').value = 'ロードサイド物件';
+        document.getElementById('form-area').value = '';
       }
 
       modal.classList.remove('hidden');
@@ -700,6 +715,7 @@
       const id = document.getElementById('form-id').value;
       let name = document.getElementById('form-name').value.trim();
       const type = document.getElementById('form-type').value;
+      const area = document.getElementById('form-area').value.trim();
       const address = document.getElementById('form-address').value.trim();
       const memo = document.getElementById('form-memo').value.trim();
       const lat = parseFloat(document.getElementById('form-lat').value);
@@ -715,7 +731,7 @@
         if (idx !== -1) {
           properties[idx] = { 
             ...properties[idx], 
-            name, type, address, memo, lat, lng,
+            name, type, area, address, memo, lat, lng,
             updatedAt: dateStr,
             timestamp: Date.now() 
           };
@@ -724,7 +740,7 @@
         properties.push({
           id: Date.now().toString(),
           lat: lat, lng: lng,
-          name, type, address, memo,
+          name, type, area, address, memo,
           flagged: false,
           createdAt: dateStr,
           timestamp: Date.now(),
@@ -766,7 +782,10 @@
       
       let dateHtml = `<span class="mr-3"><i class="fa-regular fa-calendar mr-1"></i>作成: ${p.createdAt.split(' ')[0]}</span>`;
       if (p.updatedAt) {
-          dateHtml += `<span class="text-blue-500"><i class="fa-solid fa-clock-rotate-left mr-1"></i>更新: ${p.updatedAt.split(' ')[0]}</span>`;
+          dateHtml += `<span class="text-blue-500 mr-3"><i class="fa-solid fa-clock-rotate-left mr-1"></i>更新: ${p.updatedAt.split(' ')[0]}</span>`;
+      }
+      if (p.area) {
+          dateHtml += `<span class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-bold"><i class="fa-solid fa-ruler-combined mr-1"></i>${esc(p.area)}坪</span>`;
       }
 
       card.innerHTML = `
@@ -851,6 +870,15 @@
         dateHtml += `<span class="text-blue-600"><i class="fa-solid fa-clock-rotate-left mr-1"></i>更新: ${p.updatedAt}</span>`;
       }
       document.getElementById('detail-dates').innerHTML = dateHtml;
+
+      const areaContainer = document.getElementById('detail-area-container');
+      const areaEl = document.getElementById('detail-area');
+      if (p.area) {
+        areaEl.textContent = `${p.area} 坪`;
+        areaContainer.classList.remove('hidden');
+      } else {
+        areaContainer.classList.add('hidden');
+      }
 
       document.getElementById('detail-address').textContent = p.address || '住所情報なし';
       document.getElementById('detail-memo').textContent = p.memo || 'メモの登録はありません';
@@ -1105,10 +1133,10 @@
         mimeType = 'application/json';
         filename = `BukkenMemo_${dateStr}.json`;
       } else if (exportType === 'csv') {
-        const headers = ['ID', '作成日時', '更新日時', '物件名', '種別', '住所', '緯度', '経度', 'メモ', 'フラッグ'];
+        const headers = ['ID', '作成日時', '更新日時', '物件名', '種別', '面積(坪)', '住所', '緯度', '経度', 'メモ', 'フラッグ'];
         const rows = activeProps.map(p => [
           `"${p.id}"`, `"${p.createdAt}"`, `"${p.updatedAt || ''}"`, `"${(p.name || '').replace(/"/g, '""')}"`, 
-          `"${p.type}"`, `"${(p.address || '').replace(/"/g, '""')}"`, `"${p.lat}"`, `"${p.lng}"`,
+          `"${p.type}"`, `"${p.area || ''}"`, `"${(p.address || '').replace(/"/g, '""')}"`, `"${p.lat}"`, `"${p.lng}"`,
           `"${(p.memo || '').replace(/"/g, '""')}"`, `"${p.flagged ? 'TRUE' : 'FALSE'}"`
         ]);
         content = "\uFEFF" + [headers.map(h => `"${h}"`), ...rows].map(e => e.join(",")).join("\n");
