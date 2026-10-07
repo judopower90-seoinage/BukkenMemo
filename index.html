@@ -399,6 +399,12 @@
     let mapLayers = {};
     let currentLayer = 'google';
 
+    // 上書き保存用ファイルハンドル（File System Access API用）
+    let backupFileHandles = {
+      json: null,
+      csv: null
+    };
+
     const typeColors = {
       'ロードサイド物件': '#3b82f6', // blue
       'ビルイン物件': '#10b981', // green
@@ -1114,24 +1120,19 @@
       });
     };
 
-    window.exportData = function(exportType) {
+    window.exportData = async function(exportType) {
       document.getElementById('settings-menu').classList.add('hidden');
       const activeProps = properties.filter(p => !p.isDeleted);
       if (activeProps.length === 0) return customAlert('出力するデータがありません。');
       
-      let content, mimeType, filename;
+      let content, mimeType, filename, fileExt, description;
       
-      // 端末の現在日時（ローカル時間）から年月日を取得
-      const now = new Date();
-      const yyyy = now.getFullYear();
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
-      const dd = String(now.getDate()).padStart(2, '0');
-      const dateStr = `${yyyy}${mm}${dd}`;
-
       if (exportType === 'json') {
         content = JSON.stringify(activeProps, null, 2);
         mimeType = 'application/json';
-        filename = `BukkenMemo_${dateStr}.json`;
+        filename = 'BukkenMemo_backup.json';
+        fileExt = '.json';
+        description = 'JSON バックアップファイル';
       } else if (exportType === 'csv') {
         const headers = ['ID', '作成日時', '更新日時', '物件名', '種別', '面積(坪)', '住所', '緯度', '経度', 'メモ', 'フラッグ'];
         const rows = activeProps.map(p => [
@@ -1141,26 +1142,65 @@
         ]);
         content = "\uFEFF" + [headers.map(h => `"${h}"`), ...rows].map(e => e.join(",")).join("\n");
         mimeType = 'text/csv;charset=utf-8;';
-        filename = `BukkenMemo_${dateStr}.csv`;
+        filename = 'BukkenMemo_backup.csv';
+        fileExt = '.csv';
+        description = 'CSV バックアップファイル';
       }
 
-      // BlobではなくFileオブジェクトを生成し、lastModified（更新時刻）を明示的に現在時刻に設定
-      const file = new File([content], filename, {
-        type: mimeType,
-        lastModified: Date.now()
-      });
-      const url = URL.createObjectURL(file);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 1000);
+      // 1. File System Access API対応ブラウザ（PC Chrome, Edge等）の場合
+      if ('showSaveFilePicker' in window) {
+        try {
+          let handle = backupFileHandles[exportType];
+          
+          // 前回のハンドルがない、または無効化されている場合はピッカーを開く
+          if (!handle) {
+            handle = await window.showSaveFilePicker({
+              suggestedName: filename,
+              types: [{
+                description: description,
+                accept: { [mimeType]: [fileExt] }
+              }]
+            });
+            backupFileHandles[exportType] = handle;
+          }
+
+          // 既存ファイルに上書き書き込み
+          const writable = await handle.createWritable();
+          await writable.write(content);
+          await writable.close();
+
+          customAlert(`保存先に上書き保存しました。\n(${handle.name})`);
+          return;
+        } catch (err) {
+          // ユーザーによるキャンセル時は何もしない
+          if (err.name === 'AbortError') return;
+          console.warn('File System Access API failed, falling back to download:', err);
+          // 権限失効時などはハンドルをリセット
+          backupFileHandles[exportType] = null;
+        }
+      }
+
+      // 2. 非対応ブラウザ（iOS Safariなど）またはフォールバック時
+      try {
+        const file = new File([content], filename, {
+          type: mimeType,
+          lastModified: Date.now()
+        });
+        const url = URL.createObjectURL(file);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 1000);
+      } catch (err) {
+        customAlert('バックアップの保存に失敗しました。');
+      }
     };
 
     window.importData = function(event) {
