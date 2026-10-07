@@ -39,8 +39,8 @@
     
     /* Leaflet Overrides */
     .leaflet-popup-content-wrapper {
-      border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+      border-radius: 14px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.18);
       padding: 0;
       overflow: hidden;
     }
@@ -87,7 +87,12 @@
     }
   </style>
 </head>
-<body class="h-screen w-full flex flex-col overflow-hidden">
+<body class="h-screen w-full flex flex-col overflow-hidden select-none">
+
+  <div id="storage-warning-bar" class="hidden bg-amber-500 text-white text-xs px-4 py-2 text-center font-bold z-[100] flex justify-between items-center shadow-md">
+    <span id="storage-warning-msg" class="flex-1 text-left"></span>
+    <button onclick="document.getElementById('storage-warning-bar').classList.add('hidden')" class="ml-2 text-white/80 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+  </div>
 
   <header class="bg-blue-800 text-white shadow-md z-20 relative env-safe-top shrink-0">
     <div class="flex justify-between items-center px-4 py-3">
@@ -95,30 +100,39 @@
         <i class="fa-solid fa-map-location-dot text-xl"></i>
         <h1 class="text-lg font-bold tracking-wider">BukkenMemo</h1>
       </div>
-      <div class="flex space-x-2">
-        <button onclick="window.showTrashModal()" class="w-9 h-9 rounded-full bg-blue-700 hover:bg-blue-600 flex items-center justify-center transition-colors">
+      <div class="flex items-center space-x-2">
+        <button onclick="window.showGuideModal()" title="同期・使い方ガイド" class="w-9 h-9 rounded-full bg-blue-700 hover:bg-blue-600 flex items-center justify-center transition-colors">
+          <i class="fa-solid fa-circle-question text-sm"></i>
+        </button>
+        <button onclick="window.showTrashModal()" title="ゴミ箱" class="w-9 h-9 rounded-full bg-blue-700 hover:bg-blue-600 flex items-center justify-center transition-colors relative">
           <i class="fa-solid fa-trash-can text-sm"></i>
+          <span id="trash-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold"></span>
         </button>
       </div>
     </div>
   </header>
 
   <!-- Settings Menu -->
-  <div id="settings-menu" class="absolute right-4 bg-white rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.2)] py-2 z-50 hidden border border-gray-100 w-56 origin-bottom-right transition-all" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 76px);">
+  <div id="settings-menu" class="absolute right-4 bg-white rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.2)] py-2 z-50 hidden border border-gray-100 w-64 origin-bottom-right transition-all" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 76px);">
+    <div class="px-4 py-1.5 text-[11px] font-bold text-gray-400 border-b border-gray-50 flex items-center justify-between">
+      <span>データバックアップ・同期</span>
+      <span id="storage-status-dot" class="w-2 h-2 rounded-full bg-green-500" title="ストレージ正常"></span>
+    </div>
     <button onclick="window.exportData('json')" class="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center">
-      <i class="fa-solid fa-file-code w-6 text-gray-400"></i>JSONでバックアップ
+      <i class="fa-solid fa-file-code w-6 text-blue-500"></i>JSONでバックアップ
     </button>
     <button onclick="window.exportData('csv')" class="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center">
-      <i class="fa-solid fa-file-csv w-6 text-gray-400"></i>CSVでバックアップ
+      <i class="fa-solid fa-file-csv w-6 text-emerald-500"></i>CSVでバックアップ
     </button>
     <label class="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center cursor-pointer border-t border-gray-100">
-      <i class="fa-solid fa-folder-open w-6 text-gray-400"></i>データを復元 (JSON)
+      <i class="fa-solid fa-arrow-up-from-bracket w-6 text-purple-500"></i>データを取り込む (JSON)
       <input type="file" accept=".json" class="hidden" onchange="window.importData(event)">
     </label>
   </div>
 
   <main class="flex-1 relative overflow-hidden flex flex-col bg-gray-50">
     
+    <!-- View: MAP -->
     <div id="view-map" class="absolute inset-0 flex flex-col z-10 transition-opacity duration-300">
       
       <!-- Search Bar & Layer Toggle -->
@@ -171,6 +185,7 @@
       </div>
     </div>
 
+    <!-- View: LIST -->
     <div id="view-list" class="absolute inset-0 bg-gray-50 z-0 opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto pb-safe">
       <div class="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center z-20 shadow-sm">
         <h2 class="font-bold text-gray-700 flex items-center"><i class="fa-solid fa-list-ul mr-2 text-blue-600"></i>登録物件リスト</h2>
@@ -319,16 +334,47 @@
   <div id="trash-modal" class="fixed inset-0 bg-black/60 z-[80] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
     <div class="bg-white w-full max-w-md h-[80vh] rounded-2xl flex flex-col shadow-2xl transform scale-95 transition-transform duration-300" id="trash-content">
       <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
-        <h3 class="font-bold text-gray-800 flex items-center"><i class="fa-solid fa-trash-can mr-2 text-gray-500"></i>ゴミ箱</h3>
+        <div>
+          <h3 class="font-bold text-gray-800 flex items-center"><i class="fa-solid fa-trash-can mr-2 text-gray-500"></i>ゴミ箱</h3>
+          <p class="text-[11px] text-gray-400 mt-0.5">※完全削除はこの端末のキャッシュから消去します</p>
+        </div>
         <button onclick="window.hideTrashModal()" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-xmark text-xl"></i></button>
       </div>
       <div class="p-3 flex justify-between items-center border-b border-gray-100 bg-white">
-        <span class="text-xs text-gray-500 pl-2">削除済みアイテム</span>
+        <span class="text-xs text-gray-500 pl-2" id="trash-count-label">0件の削除済みアイテム</span>
         <button onclick="window.emptyTrash()" class="text-xs font-bold bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors border border-red-100">全て完全削除</button>
       </div>
       <div class="flex-1 overflow-y-auto p-4 bg-gray-50" id="trash-list">
         <!-- Trash items injected here -->
       </div>
+    </div>
+  </div>
+
+  <!-- Guide Modal -->
+  <div id="guide-modal" class="fixed inset-0 bg-black/60 z-[90] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md max-h-[85vh] rounded-2xl flex flex-col shadow-2xl p-5 overflow-hidden">
+      <div class="flex justify-between items-center pb-3 border-b border-gray-100">
+        <h3 class="font-bold text-gray-800 flex items-center"><i class="fa-solid fa-circle-question mr-2 text-blue-600"></i>データ同期・運用ガイド</h3>
+        <button onclick="window.hideGuideModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+      <div class="overflow-y-auto py-3 text-xs text-gray-600 space-y-3 leading-relaxed">
+        <div class="bg-blue-50 p-3 rounded-xl border border-blue-100">
+          <p class="font-bold text-blue-900 mb-1">🔄 PCとiPhoneでのデータ同期手順</p>
+          <ol class="list-decimal pl-4 space-y-1 text-blue-800">
+            <li>作業した端末で「データ管理」→「JSONでバックアップ」を実行</li>
+            <li>保存したファイルをGoogleドライブやAirDrop等で共有</li>
+            <li>もう一方の端末で「データ管理」→「データを取り込む」で選択</li>
+          </ol>
+          <p class="mt-1 text-[11px] text-blue-700">★更新日時が新しい方が自動優先され、削除した物件も正しく反映されます。</p>
+        </div>
+        <div class="bg-amber-50 p-3 rounded-xl border border-amber-100">
+          <p class="font-bold text-amber-900 mb-1">⚠️ iPhoneでの利用時の重要な注意</p>
+          <p class="text-amber-800 text-[11px]">iOS Safariは7日間開かないとキャッシュが自動クリアされる場合があります。Safariの共有ボタンから<strong>「ホーム画面に追加」</strong>してPWAとして起動すると、削除対象外となり安定してご利用いただけます。</p>
+        </div>
+      </div>
+      <button onclick="window.hideGuideModal()" class="mt-2 w-full py-2.5 bg-blue-600 text-white font-bold rounded-xl text-xs hover:bg-blue-700 transition-colors">
+        閉じる
+      </button>
     </div>
   </div>
 
@@ -344,9 +390,59 @@
   </div>
 
   <script>
+    const STORAGE_KEY = 'BukkenMemo_properties';
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-    // Custom Dialog Logic (Replaces alert/confirm)
+    // UUID Generator (Supports crypto.randomUUID and fallback)
+    function generateUUID() {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+      }
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+
+    // Date Utilities (ISO8601 UTC standard storage & local display)
+    function toISO(d) {
+      if (!d) return null;
+      if (d instanceof Date) return isNaN(d.getTime()) ? null : d.toISOString();
+      if (typeof d === 'number') {
+        const date = new Date(d);
+        return isNaN(date.getTime()) ? null : date.toISOString();
+      }
+      if (typeof d === 'string') {
+        // Handle "YYYY/MM/DD HH:mm" or "YYYY-MM-DD..."
+        const normalized = d.replace(/\//g, '-');
+        const parsed = Date.parse(normalized.includes('T') ? normalized : normalized.replace(' ', 'T'));
+        if (!isNaN(parsed)) return new Date(parsed).toISOString();
+        const fallback = Date.parse(d);
+        if (!isNaN(fallback)) return new Date(fallback).toISOString();
+      }
+      return null;
+    }
+
+    function formatDisplayDate(isoString, includeTime = false) {
+      if (!isoString) return '日付不明';
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return '日付不明';
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      if (!includeTime) return `${y}/${m}/${day}`;
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      return `${y}/${m}/${day} ${hh}:${mm}`;
+    }
+
+    function timeOf(record) {
+      const target = record.updatedAt || record.createdAt || record.deletedAt;
+      if (!target) return 0;
+      const t = Date.parse(target);
+      return isNaN(t) ? 0 : t;
+    }
+
     let dialogConfirmCallback = null;
     function showDialog(message, isConfirm, callback = null) {
       const modal = document.getElementById('dialog-modal');
@@ -384,40 +480,134 @@
     function customAlert(message) { showDialog(message, false); }
     function customConfirm(message, onConfirmCallback) { showDialog(message, true, onConfirmCallback); }
 
-    // State
-    let map, targetMarker;
-    let savedMarkersLayer; 
-    let currentLocation = { lat: 35.681236, lng: 139.767125, address: '現在地を取得中...' };
-    
-    // Load Data
-    let properties = JSON.parse(localStorage.getItem('BukkenMemo_properties') || '[]');
-
-    // マイグレーション: 過去データや作成日が欠落している物件に正確な作成日時を自動付与
-    let needsMigrationSave = false;
-    properties = properties.map(p => {
-      if (!p.createdAt) {
-        needsMigrationSave = true;
-        const d = p.timestamp ? new Date(p.timestamp) : new Date();
-        p.createdAt = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    function showStorageWarning(msg) {
+      const bar = document.getElementById('storage-warning-bar');
+      const msgEl = document.getElementById('storage-warning-msg');
+      const dot = document.getElementById('storage-status-dot');
+      if (bar && msgEl) {
+        msgEl.textContent = msg;
+        bar.classList.remove('hidden');
       }
-      return p;
-    });
-    if (needsMigrationSave) {
-      localStorage.setItem('BukkenMemo_properties', JSON.stringify(properties));
+      if (dot) {
+        dot.className = 'w-2 h-2 rounded-full bg-red-500';
+      }
     }
-    
+
+    let properties = [];
+    let storageOk = true;
+
+    function normalizeRecord(raw, nowIso = new Date().toISOString()) {
+      const id = String(raw.id || generateUUID());
+      const createdAt = toISO(raw.createdAt) || (raw.timestamp ? toISO(raw.timestamp) : null);
+      const updatedAt = toISO(raw.updatedAt) || createdAt || nowIso;
+      const deletedAt = toISO(raw.deletedAt) || (raw.isDeleted ? (updatedAt || nowIso) : null);
+
+      return {
+        id,
+        name: typeof raw.name === 'string' ? raw.name.trim() : '',
+        type: raw.type || '未分類',
+        area: raw.area !== undefined && raw.area !== null ? String(raw.area).trim() : '',
+        address: typeof raw.address === 'string' ? raw.address.trim() : '',
+        memo: typeof raw.memo === 'string' ? raw.memo.trim() : '',
+        lat: typeof raw.lat === 'number' ? raw.lat : parseFloat(raw.lat || 0),
+        lng: typeof raw.lng === 'number' ? raw.lng : parseFloat(raw.lng || 0),
+        flagged: !!raw.flagged,
+        createdAt: createdAt, // 日付不明の場合は null
+        updatedAt: updatedAt,
+        deletedAt: deletedAt,
+        isDeleted: !!deletedAt
+      };
+    }
+
+    function loadPropertiesFromStorage() {
+      try {
+        const rawJson = localStorage.getItem(STORAGE_KEY);
+        if (!rawJson) return [];
+        const parsed = JSON.parse(rawJson);
+        const list = Array.isArray(parsed) ? parsed : (parsed.records && Array.isArray(parsed.records) ? parsed.records : []);
+        const nowIso = new Date().toISOString();
+        return list.map(item => normalizeRecord(item, nowIso));
+      } catch (e) {
+        console.error('Failed to parse localStorage data', e);
+        showStorageWarning('保存データの読み込みに問題が発生しました。');
+        return [];
+      }
+    }
+
+    function persist() {
+      const json = JSON.stringify(properties);
+      try {
+        localStorage.setItem(STORAGE_KEY, json);
+        if (localStorage.getItem(STORAGE_KEY) !== json) {
+          throw new Error('Verification failed');
+        }
+        storageOk = true;
+        const dot = document.getElementById('storage-status-dot');
+        if (dot) dot.className = 'w-2 h-2 rounded-full bg-green-500';
+        return true;
+      } catch (e) {
+        console.error('Save to localStorage failed', e);
+        storageOk = false;
+        showStorageWarning('端末への自動保存に失敗しました。プライベートブラウズまたは容量制限をご確認ください。');
+        return false;
+      }
+    }
+
+    // Last-Write-Wins Multi-device Synchronizer
+    function mergeRecords(localList, incomingList) {
+      const nowIso = new Date().toISOString();
+      const stats = { added: 0, updated: 0, deleted: 0, restored: 0, unchanged: 0, invalid: 0, total: 0 };
+      const byId = new Map(localList.map(r => [r.id, r]));
+
+      for (const raw of incomingList) {
+        stats.total++;
+        if (!raw || typeof raw !== 'object') {
+          stats.invalid++;
+          continue;
+        }
+        const inc = normalizeRecord(raw, nowIso);
+        const cur = byId.get(inc.id);
+
+        if (!cur) {
+          localList.push(inc);
+          byId.set(inc.id, inc);
+          if (inc.deletedAt) {
+            stats.deleted++;
+          } else {
+            stats.added++;
+          }
+          continue;
+        }
+
+        // 比較：更新日時が新しいレコードを採用 (Last-Write-Wins)
+        if (timeOf(inc) > timeOf(cur)) {
+          const wasDeleted = !!cur.deletedAt;
+          Object.assign(cur, inc);
+          if (inc.deletedAt) {
+            stats.deleted++;
+          } else if (wasDeleted) {
+            stats.restored++;
+          } else {
+            stats.updated++;
+          }
+        } else {
+          stats.unchanged++;
+        }
+      }
+
+      return { stats, records: localList };
+    }
+
+    let map, targetMarker, savedMarkersLayer; 
+    let currentLocation = { lat: 35.681236, lng: 139.767125, address: '' };
     let currentMainView = 'map';
     let geocodeSeq = 0;
     let geoTimer = null;
-    
     let mapLayers = {};
     let currentLayer = 'google';
+    let isSavingLock = false;
 
-    // 上書き保存用ファイルハンドル（File System Access API用）
-    let backupFileHandles = {
-      json: null,
-      csv: null
-    };
+    let backupFileHandles = { json: null, csv: null };
 
     const typeColors = {
       'ロードサイド物件': '#3b82f6', // blue
@@ -427,12 +617,25 @@
       '未分類': '#6b7280' // gray
     };
 
-    // --- Initialization ---
     function initApp() {
+      // Diagnostic check for file: protocol
+      if (window.location.protocol === 'file:') {
+        showStorageWarning('file:// で開いています。iOSでは保存が消える可能性があるためホーム画面追加またはWeb公開を推奨します。');
+      }
+
+      // Request persistent storage if available
+      if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persist().catch(() => {});
+      }
+
+      properties = loadPropertiesFromStorage();
+      persist(); // Normalize & verify
+
       initMap();
       renderMapMarkers();
       renderList();
       updateLayerChecks();
+      updateTrashBadge();
     }
 
     if (document.readyState === 'loading') {
@@ -440,29 +643,24 @@
     } else {
       initApp();
     }
-    
-    // Fallback for iframe previews
-    setTimeout(() => { if(!map) initApp(); }, 1000);
+    setTimeout(() => { if (!map) initApp(); }, 1000);
 
-    // --- Map Logic ---
     function initMap() {
-      if(map) return;
+      if (map) return;
       map = L.map('map', { zoomControl: false, attributionControl: false }).setView([currentLocation.lat, currentLocation.lng], 15);
       
-      // Define Layers
       mapLayers = {
+        google: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20 }),
         gsi: L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
           maxZoom: 18,
           attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>"
         }),
-        google: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20 }),
         googleSat: L.tileLayer('https://mt1.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', { maxZoom: 20 })
       };
       
       mapLayers[currentLayer].addTo(map);
       savedMarkersLayer = L.layerGroup().addTo(map);
 
-      // Target Marker (Center crosshairs equivalent)
       const targetIcon = L.divIcon({
         html: `<div class="target-marker"></div>`,
         className: 'custom-div-icon',
@@ -476,7 +674,7 @@
         zIndexOffset: 1000 
       }).addTo(map);
 
-      targetMarker.on('dragend', function (e) {
+      targetMarker.on('dragend', function () {
         const pos = targetMarker.getLatLng();
         updateCurrentLocation(pos.lat, pos.lng);
       });
@@ -486,17 +684,16 @@
         updateCurrentLocation(e.latlng.lat, e.latlng.lng);
       });
 
-      // Initial locate attempt
       if (navigator.geolocation && window.location.protocol === 'https:') {
         navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
+          (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
             map.setView([lat, lng], 17);
             targetMarker.setLatLng([lat, lng]);
             updateCurrentLocation(lat, lng);
           },
-          (error) => { console.warn("Auto-locate failed", error); },
+          (err) => { console.warn("Auto-locate failed", err); },
           { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
         );
       }
@@ -508,7 +705,7 @@
     };
 
     window.switchLayer = function(layerId) {
-      if(mapLayers[currentLayer]) {
+      if (mapLayers[currentLayer]) {
         map.removeLayer(mapLayers[currentLayer]);
       }
       currentLayer = layerId;
@@ -520,7 +717,7 @@
     function updateLayerChecks() {
       document.querySelectorAll('[class*="layer-check-"]').forEach(el => el.classList.add('hidden'));
       const activeCheck = document.querySelector(`.layer-check-${currentLayer}`);
-      if(activeCheck) activeCheck.classList.remove('hidden');
+      if (activeCheck) activeCheck.classList.remove('hidden');
     }
 
     function updateCurrentLocation(lat, lng) {
@@ -528,7 +725,7 @@
       currentLocation.lng = lng;
       
       const addrEl = document.getElementById('current-address');
-      if(addrEl) addrEl.textContent = '現在地を取得中...';
+      if (addrEl) addrEl.textContent = '現在地を取得中...';
       
       clearTimeout(geoTimer);
       geoTimer = setTimeout(() => reverseGeocode(lat, lng), 600);
@@ -558,7 +755,7 @@
       }
       
       const addrEl = document.getElementById('current-address');
-      if(addrEl) addrEl.textContent = currentLocation.address;
+      if (addrEl) addrEl.textContent = currentLocation.address;
     }
 
     window.locateMe = function() {
@@ -571,7 +768,7 @@
             targetMarker.setLatLng([lat, lng]);
             updateCurrentLocation(lat, lng);
           },
-          (error) => { /* Silent fail in previews */ },
+          () => {},
           { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
       }
@@ -604,15 +801,15 @@
     };
 
     function renderMapMarkers() {
-      if(!savedMarkersLayer) return;
+      if (!savedMarkersLayer) return;
       savedMarkersLayer.clearLayers();
 
-      const activeProps = properties.filter(p => !p.isDeleted);
+      const activeProps = properties.filter(p => !p.deletedAt && !p.isDeleted);
 
       activeProps.forEach(p => {
         const color = typeColors[p.type] || typeColors['未分類'];
         
-        // 虫ピン(📍)を模したデザインのHTML
+        // 虫ピン(📍)デザイン
         const htmlStr = `
           <div class="relative flex flex-col items-center transform transition-transform hover:scale-110" style="margin-top: -6px;">
             <div class="w-5 h-5 rounded-full shadow-[inset_-2px_-2px_6px_rgba(0,0,0,0.3),0_2px_4px_rgba(0,0,0,0.4)] border border-white z-10" style="background-color: ${color};"></div>
@@ -643,7 +840,7 @@
               </div>
             </div>
             <div class="flex space-x-2">
-              <button onclick="window.moveToTrash('${p.id}')" class="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex justify-center items-center hover:bg-red-100 transition-colors shrink-0">
+              <button onclick="window.moveToTrash('${p.id}')" class="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex justify-center items-center hover:bg-red-100 transition-colors shrink-0" title="ゴミ箱へ移動">
                 <i class="fa-solid fa-trash-can"></i>
               </button>
               <button onclick="window.openFormModal('${p.id}')" class="flex-1 py-2 bg-gray-100 text-gray-700 font-bold rounded-xl text-sm hover:bg-gray-200 transition-colors">
@@ -677,7 +874,7 @@
         viewMap.classList.add('z-10');
         viewList.classList.add('opacity-0', 'pointer-events-none', 'z-0');
         viewList.classList.remove('z-10');
-        if(map) setTimeout(() => map.invalidateSize(), 300);
+        if (map) setTimeout(() => map.invalidateSize(), 300);
       } else {
         viewList.classList.remove('opacity-0', 'pointer-events-none', 'z-0');
         viewList.classList.add('z-10');
@@ -687,98 +884,9 @@
       }
     };
 
-    window.openFormModal = function(id = null) {
-      const modal = document.getElementById('form-modal');
-      const content = document.getElementById('form-content');
-      
-      if (id) {
-        const p = properties.find(x => x.id === id);
-        if (p) {
-          document.getElementById('modal-title').textContent = '地点情報を編集';
-          document.getElementById('form-id').value = p.id;
-          document.getElementById('form-lat').value = p.lat;
-          document.getElementById('form-lng').value = p.lng;
-          document.getElementById('form-name').value = p.name || '';
-          document.getElementById('form-address').value = p.address || '';
-          document.getElementById('form-memo').value = p.memo || '';
-          document.getElementById('form-type').value = p.type || '未分類';
-          document.getElementById('form-area').value = p.area || '';
-        }
-      } else {
-        document.getElementById('modal-title').textContent = '新しく登録';
-        document.getElementById('form-id').value = '';
-        document.getElementById('form-lat').value = targetMarker.getLatLng().lat;
-        document.getElementById('form-lng').value = targetMarker.getLatLng().lng;
-        document.getElementById('form-name').value = '';
-        document.getElementById('form-address').value = currentLocation.address;
-        document.getElementById('form-memo').value = '';
-        document.getElementById('form-type').value = 'ロードサイド物件';
-        document.getElementById('form-area').value = '';
-      }
-
-      modal.classList.remove('hidden');
-      setTimeout(() => {
-        modal.classList.remove('opacity-0');
-        content.classList.remove('translate-y-full');
-      }, 10);
-    };
-
-    window.closeFormModal = function() {
-      const modal = document.getElementById('form-modal');
-      const content = document.getElementById('form-content');
-      modal.classList.add('opacity-0');
-      content.classList.add('translate-y-full');
-      setTimeout(() => { modal.classList.add('hidden'); }, 300);
-    };
-
-    window.saveProperty = function() {
-      const id = document.getElementById('form-id').value;
-      let name = document.getElementById('form-name').value.trim();
-      const type = document.getElementById('form-type').value;
-      const area = document.getElementById('form-area').value.trim();
-      const address = document.getElementById('form-address').value.trim();
-      const memo = document.getElementById('form-memo').value.trim();
-      const lat = parseFloat(document.getElementById('form-lat').value);
-      const lng = parseFloat(document.getElementById('form-lng').value);
-
-      const now = new Date();
-      const dateStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-
-      if (!name) name = dateStr; // 未入力時は日時
-
-      if (id) {
-        const idx = properties.findIndex(p => p.id === id);
-        if (idx !== -1) {
-          const prev = properties[idx];
-          properties[idx] = { 
-            ...prev, 
-            name, type, area, address, memo, lat, lng,
-            createdAt: prev.createdAt || dateStr, // 作成日を確実に保持・補完
-            updatedAt: dateStr,
-            timestamp: Date.now() 
-          };
-        }
-      } else {
-        properties.push({
-          id: Date.now().toString(),
-          lat: lat, lng: lng,
-          name, type, area, address, memo,
-          flagged: false,
-          createdAt: dateStr,
-          timestamp: Date.now(),
-          isDeleted: false
-        });
-      }
-      
-      saveToLocal();
-      renderList();
-      renderMapMarkers();
-      closeFormModal();
-    };
-
     function renderList() {
       const listEl = document.getElementById('property-list');
-      const activeProps = properties.filter(p => !p.isDeleted);
+      const activeProps = properties.filter(p => !p.deletedAt && !p.isDeleted);
 
       document.getElementById('list-count').textContent = `${activeProps.length}件`;
       listEl.innerHTML = '';
@@ -788,7 +896,8 @@
         return;
       }
 
-      const sorted = [...activeProps].sort((a, b) => b.timestamp - a.timestamp);
+      // 安定ソート: Date.parseベース
+      const sorted = [...activeProps].sort((a, b) => timeOf(b) - timeOf(a));
 
       sorted.forEach(p => {
         listEl.appendChild(createCardHTML(p));
@@ -798,17 +907,18 @@
 
     function createCardHTML(p) {
       const color = typeColors[p.type] || typeColors['未分類'];
-      
       const card = document.createElement('div');
       card.className = 'relative overflow-hidden bg-red-500 border-b border-gray-100 last:border-b-0 group';
       
-      const createdDisplay = p.createdAt ? p.createdAt.split(' ')[0] : '-';
+      const createdDisplay = formatDisplayDate(p.createdAt, false);
+      const updatedDisplay = formatDisplayDate(p.updatedAt, false);
+
       let dateHtml = `<span class="mr-3"><i class="fa-regular fa-calendar mr-1"></i>作成: ${createdDisplay}</span>`;
-      if (p.updatedAt) {
-          dateHtml += `<span class="text-blue-500 mr-3"><i class="fa-solid fa-clock-rotate-left mr-1"></i>更新: ${p.updatedAt.split(' ')[0]}</span>`;
+      if (p.updatedAt && p.createdAt && p.updatedAt !== p.createdAt) {
+        dateHtml += `<span class="text-blue-500 mr-3"><i class="fa-solid fa-clock-rotate-left mr-1"></i>更新: ${updatedDisplay}</span>`;
       }
       if (p.area) {
-          dateHtml += `<span class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-bold"><i class="fa-solid fa-ruler-combined mr-1"></i>${esc(p.area)}坪</span>`;
+        dateHtml += `<span class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-bold"><i class="fa-solid fa-ruler-combined mr-1"></i>${esc(p.area)}坪</span>`;
       }
 
       card.innerHTML = `
@@ -863,7 +973,6 @@
         swipeEl.dataset.open = 'false';
         return;
       }
-      
       window.openDetailModal(id);
     };
 
@@ -888,9 +997,9 @@
         flagBadge.classList.add('hidden');
       }
 
-      let dateHtml = `<span><i class="fa-regular fa-calendar mr-1"></i>作成: ${p.createdAt || '-'}</span>`;
-      if (p.updatedAt) {
-        dateHtml += `<span class="text-blue-600"><i class="fa-solid fa-clock-rotate-left mr-1"></i>更新: ${p.updatedAt}</span>`;
+      let dateHtml = `<span><i class="fa-regular fa-calendar mr-1"></i>作成: ${formatDisplayDate(p.createdAt, true)}</span>`;
+      if (p.updatedAt && p.createdAt && p.updatedAt !== p.createdAt) {
+        dateHtml += `<span class="text-blue-600"><i class="fa-solid fa-clock-rotate-left mr-1"></i>更新: ${formatDisplayDate(p.updatedAt, true)}</span>`;
       }
       document.getElementById('detail-dates').innerHTML = dateHtml;
 
@@ -939,12 +1048,121 @@
       setTimeout(() => { modal.classList.add('hidden'); }, 300);
     };
 
+    window.openFormModal = function(id = null) {
+      const modal = document.getElementById('form-modal');
+      const content = document.getElementById('form-content');
+      
+      if (id) {
+        const p = properties.find(x => x.id === id);
+        if (p) {
+          document.getElementById('modal-title').textContent = '地点情報を編集';
+          document.getElementById('form-id').value = p.id;
+          document.getElementById('form-lat').value = p.lat;
+          document.getElementById('form-lng').value = p.lng;
+          document.getElementById('form-name').value = p.name || '';
+          document.getElementById('form-address').value = p.address || '';
+          document.getElementById('form-memo').value = p.memo || '';
+          document.getElementById('form-type').value = p.type || '未分類';
+          document.getElementById('form-area').value = p.area || '';
+        }
+      } else {
+        document.getElementById('modal-title').textContent = '新しく登録';
+        document.getElementById('form-id').value = '';
+        document.getElementById('form-lat').value = targetMarker.getLatLng().lat;
+        document.getElementById('form-lng').value = targetMarker.getLatLng().lng;
+        document.getElementById('form-name').value = '';
+        // 「現在地を取得中...」をそのまま保存しないよう安全ガード
+        const currentAddrText = currentLocation.address && currentLocation.address !== '現在地を取得中...' ? currentLocation.address : '';
+        document.getElementById('form-address').value = currentAddrText;
+        document.getElementById('form-memo').value = '';
+        document.getElementById('form-type').value = 'ロードサイド物件';
+        document.getElementById('form-area').value = '';
+      }
+
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        content.classList.remove('translate-y-full');
+      }, 10);
+    };
+
+    window.closeFormModal = function() {
+      const modal = document.getElementById('form-modal');
+      const content = document.getElementById('form-content');
+      modal.classList.add('opacity-0');
+      content.classList.add('translate-y-full');
+      setTimeout(() => { modal.classList.add('hidden'); }, 300);
+    };
+
+    window.saveProperty = function() {
+      if (isSavingLock) return;
+      isSavingLock = true;
+      const saveBtn = document.getElementById('save-submit-btn');
+      if (saveBtn) saveBtn.disabled = true;
+
+      setTimeout(() => {
+        isSavingLock = false;
+        if (saveBtn) saveBtn.disabled = false;
+      }, 500);
+
+      const id = document.getElementById('form-id').value;
+      let name = document.getElementById('form-name').value.trim();
+      const type = document.getElementById('form-type').value;
+      const area = document.getElementById('form-area').value.trim();
+      let address = document.getElementById('form-address').value.trim();
+      const memo = document.getElementById('form-memo').value.trim();
+      const lat = parseFloat(document.getElementById('form-lat').value);
+      const lng = parseFloat(document.getElementById('form-lng').value);
+
+      if (address === '現在地を取得中...') {
+        address = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      }
+
+      const now = new Date();
+      const nowIso = now.toISOString();
+      const defaultName = formatDisplayDate(nowIso, true);
+
+      if (!name) name = defaultName;
+
+      if (id) {
+        const idx = properties.findIndex(p => p.id === id);
+        if (idx !== -1) {
+          const prev = properties[idx];
+          properties[idx] = { 
+            ...prev, 
+            name, type, area, address, memo, lat, lng,
+            createdAt: prev.createdAt || nowIso,
+            updatedAt: nowIso,
+            deletedAt: null,
+            isDeleted: false
+          };
+        }
+      } else {
+        properties.push({
+          id: generateUUID(),
+          lat, lng,
+          name, type, area, address, memo,
+          flagged: false,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+          deletedAt: null,
+          isDeleted: false
+        });
+      }
+      
+      persist();
+      renderList();
+      renderMapMarkers();
+      updateTrashBadge();
+      closeFormModal();
+    };
+
     function initSwipeLogic() {
       let touchStartX = 0;
       let currentSwipeContent = null;
       let currentTranslateX = 0;
       const threshold = -40;
-      const maxSwipe = -96; // matches w-24
+      const maxSwipe = -96;
 
       function handleDragStart(e) {
         if (e.target.closest('button, a')) return;
@@ -979,7 +1197,7 @@
           isCardSwiping = true;
         }
 
-        if(Math.abs(deltaX) < 10 && e.type === 'touchmove') return;
+        if (Math.abs(deltaX) < 10 && e.type === 'touchmove') return;
 
         let newX = currentTranslateX + deltaX;
         if (newX > 0) newX = 0; 
@@ -1010,7 +1228,7 @@
       }
 
       const listContainer = document.getElementById('view-list');
-      if(listContainer._swipeInitialized) return; 
+      if (listContainer._swipeInitialized) return; 
       
       listContainer.addEventListener('touchstart', handleDragStart, { passive: true });
       listContainer.addEventListener('touchmove', handleDragMove, { passive: false });
@@ -1019,13 +1237,14 @@
     }
 
     window.toggleFlag = function(id) {
-       const idx = properties.findIndex(p => p.id === id);
-       if (idx !== -1) {
-          properties[idx].flagged = !properties[idx].flagged;
-          saveToLocal();
-          renderList();
-          renderMapMarkers();
-       }
+      const idx = properties.findIndex(p => p.id === id);
+      if (idx !== -1) {
+        properties[idx].flagged = !properties[idx].flagged;
+        properties[idx].updatedAt = new Date().toISOString();
+        persist();
+        renderList();
+        renderMapMarkers();
+      }
     };
 
     window.moveToProperty = function(lat, lng) {
@@ -1033,20 +1252,32 @@
       map.flyTo([lat, lng], 17, {duration: 0.5});
     };
 
-    function saveToLocal() {
-      localStorage.setItem('BukkenMemo_properties', JSON.stringify(properties));
-    }
-
     window.moveToTrash = function(id) {
       const idx = properties.findIndex(p => p.id === id);
       if (idx !== -1) {
+        const nowIso = new Date().toISOString();
+        properties[idx].deletedAt = nowIso;
+        properties[idx].updatedAt = nowIso;
         properties[idx].isDeleted = true;
-        saveToLocal();
+        persist();
         renderList();
         renderMapMarkers();
-        if(map) map.closePopup();
+        updateTrashBadge();
+        if (map) map.closePopup();
       }
     };
+
+    function updateTrashBadge() {
+      const badge = document.getElementById('trash-badge');
+      const count = properties.filter(p => p.deletedAt || p.isDeleted).length;
+      if (!badge) return;
+      if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : count;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
 
     window.toggleSettingsMenu = function() {
       const menu = document.getElementById('settings-menu');
@@ -1054,10 +1285,10 @@
     };
     
     document.addEventListener('click', function(e) {
-      if(!e.target.closest('#settings-menu') && !e.target.closest('#nav-settings')) {
+      if (!e.target.closest('#settings-menu') && !e.target.closest('#nav-settings')) {
         document.getElementById('settings-menu').classList.add('hidden');
       }
-      if(!e.target.closest('#layer-menu') && !e.target.closest('button[onclick="window.toggleLayerMenu()"]')) {
+      if (!e.target.closest('#layer-menu') && !e.target.closest('button[onclick="window.toggleLayerMenu()"]')) {
         document.getElementById('layer-menu').classList.add('hidden');
       }
     });
@@ -1082,9 +1313,23 @@
       setTimeout(() => modal.classList.add('hidden'), 300);
     };
 
+    window.showGuideModal = function() {
+      const modal = document.getElementById('guide-modal');
+      modal.classList.remove('hidden');
+      setTimeout(() => modal.classList.remove('opacity-0'), 10);
+    };
+
+    window.hideGuideModal = function() {
+      const modal = document.getElementById('guide-modal');
+      modal.classList.add('opacity-0');
+      setTimeout(() => modal.classList.add('hidden'), 300);
+    };
+
     function renderTrashList() {
       const listEl = document.getElementById('trash-list');
-      const deletedProps = properties.filter(p => p.isDeleted);
+      const deletedProps = properties.filter(p => p.deletedAt || p.isDeleted);
+      const countLabel = document.getElementById('trash-count-label');
+      if (countLabel) countLabel.textContent = `${deletedProps.length}件の削除済みアイテム`;
       listEl.innerHTML = '';
 
       if (deletedProps.length === 0) {
@@ -1092,13 +1337,14 @@
         return;
       }
 
-      deletedProps.sort((a, b) => b.timestamp - a.timestamp).forEach(p => {
+      deletedProps.sort((a, b) => timeOf(b) - timeOf(a)).forEach(p => {
         const div = document.createElement('div');
         div.className = 'bg-white p-4 rounded-xl mb-3 flex justify-between items-center shadow-sm border border-gray-100';
         div.innerHTML = `
           <div class="flex-1 min-w-0 pr-4">
              <h4 class="font-bold text-gray-500 text-sm truncate line-through mb-1">${esc(p.name)}</h4>
              <p class="text-[10px] text-gray-400 truncate">${esc(p.address)}</p>
+             <p class="text-[9px] text-gray-400 mt-1">削除: ${formatDisplayDate(p.deletedAt || p.updatedAt, true)}</p>
           </div>
           <div class="flex space-x-2 flex-shrink-0">
              <button onclick="window.restoreProperty('${p.id}')" class="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl shadow-sm flex items-center justify-center hover:bg-blue-100 transition-colors" title="復元"><i class="fa-solid fa-arrow-rotate-left"></i></button>
@@ -1112,50 +1358,69 @@
     window.restoreProperty = function(id) {
       const idx = properties.findIndex(p => p.id === id);
       if (idx !== -1) {
+        const nowIso = new Date().toISOString();
+        properties[idx].deletedAt = null;
+        properties[idx].updatedAt = nowIso;
         properties[idx].isDeleted = false;
-        saveToLocal();
+        persist();
         renderTrashList();
         renderList();
         renderMapMarkers();
+        updateTrashBadge();
       }
     };
 
     window.permanentlyDeleteProperty = function(id) {
-      customConfirm('完全に削除しますか？復元できません。', () => {
+      customConfirm('この端末から完全に削除しますか？\n（古いバックアップを取り込まない限り復元できません）', () => {
         properties = properties.filter(p => p.id !== id);
-        saveToLocal();
+        persist();
         renderTrashList();
+        updateTrashBadge();
       });
     };
 
+    // FIX: 修正版 emptyTrash ロジック（全件がゴミ箱にある場合でも正常に削除可能）
     window.emptyTrash = function() {
-      if(properties.filter(p => !p.isDeleted).length === 0) return;
-      customConfirm('ゴミ箱の中身をすべて完全に削除しますか？', () => {
-        properties = properties.filter(p => !p.isDeleted);
-        saveToLocal();
+      const deletedCount = properties.filter(p => p.deletedAt || p.isDeleted).length;
+      if (deletedCount === 0) return;
+      customConfirm(`ゴミ箱の${deletedCount}件をすべて完全削除しますか？`, () => {
+        properties = properties.filter(p => !p.deletedAt && !p.isDeleted);
+        persist();
         renderTrashList();
+        updateTrashBadge();
       });
     };
 
     window.exportData = async function(exportType) {
       document.getElementById('settings-menu').classList.add('hidden');
-      const activeProps = properties.filter(p => !p.isDeleted);
-      if (activeProps.length === 0) return customAlert('出力するデータがありません。');
+      
+      // 全レコード（墓標レコードを含む）を書き出すことで他端末へ削除も伝播可能
+      if (properties.length === 0) return customAlert('出力するデータがありません。');
       
       let content, mimeType, filename, fileExt, description;
       
       if (exportType === 'json') {
-        content = JSON.stringify(activeProps, null, 2);
+        const envelope = {
+          app: 'BukkenMemo',
+          schemaVersion: 2,
+          exportedAt: new Date().toISOString(),
+          device: navigator.userAgent.includes('iPhone') ? 'iOS' : 'Desktop/Other',
+          records: properties
+        };
+        content = JSON.stringify(envelope, null, 2);
         mimeType = 'application/json';
         filename = 'BukkenMemo_backup.json';
         fileExt = '.json';
-        description = 'JSON バックアップファイル';
+        description = 'BukkenMemo JSON バックアップ';
       } else if (exportType === 'csv') {
-        const headers = ['ID', '作成日時', '更新日時', '物件名', '種別', '面積(坪)', '住所', '緯度', '経度', 'メモ', 'フラッグ'];
+        const activeProps = properties.filter(p => !p.deletedAt && !p.isDeleted);
+        if (activeProps.length === 0) return customAlert('有効な物件データがありません。');
+        
+        const headers = ['ID', '作成日時', '最終更新日時', '物件名', '種別', '面積(坪)', '住所', '緯度', '経度', 'メモ', 'フラッグ'];
         const rows = activeProps.map(p => [
           `"${p.id || ''}"`, 
-          `"${p.createdAt || ''}"`, 
-          `"${p.updatedAt || ''}"`, 
+          `"${formatDisplayDate(p.createdAt, true)}"`, 
+          `"${formatDisplayDate(p.updatedAt, true)}"`, 
           `"${(p.name || '').replace(/"/g, '""')}"`, 
           `"${p.type || ''}"`, 
           `"${p.area || ''}"`, 
@@ -1165,19 +1430,27 @@
           `"${(p.memo || '').replace(/"/g, '""')}"`, 
           `"${p.flagged ? 'TRUE' : 'FALSE'}"`
         ]);
-        content = "\uFEFF" + [headers.map(h => `"${h}"`), ...rows].map(e => e.join(",")).join("\n");
+        // Excel対応: UTF-8 BOM付き + CRLF改行
+        content = "\uFEFF" + [headers.map(h => `"${h}"`), ...rows].map(e => e.join(",")).join("\r\n");
         mimeType = 'text/csv;charset=utf-8;';
         filename = 'BukkenMemo_backup.csv';
         fileExt = '.csv';
-        description = 'CSV バックアップファイル';
+        description = 'BukkenMemo CSV バックアップ';
       }
 
-      // 1. File System Access API対応ブラウザ（PC Chrome, Edge等）の場合
+      // 1. File System Access API対応ブラウザ (PC Chrome, Edge等)
       if ('showSaveFilePicker' in window) {
         try {
           let handle = backupFileHandles[exportType];
           
-          // 前回のハンドルがない、または無効化されている場合はピッカーを開く
+          if (handle && handle.queryPermission) {
+            const perm = await handle.queryPermission({ mode: 'readwrite' });
+            if (perm !== 'granted') {
+              const req = await handle.requestPermission({ mode: 'readwrite' });
+              if (req !== 'granted') handle = null;
+            }
+          }
+
           if (!handle) {
             handle = await window.showSaveFilePicker({
               suggestedName: filename,
@@ -1189,7 +1462,6 @@
             backupFileHandles[exportType] = handle;
           }
 
-          // 既存ファイルに上書き書き込み
           const writable = await handle.createWritable();
           await writable.write(content);
           await writable.close();
@@ -1197,15 +1469,13 @@
           customAlert(`保存先に上書き保存しました。\n(${handle.name})`);
           return;
         } catch (err) {
-          // ユーザーによるキャンセル時は何もしない
           if (err.name === 'AbortError') return;
           console.warn('File System Access API failed, falling back to download:', err);
-          // 権限失効時などはハンドルをリセット
           backupFileHandles[exportType] = null;
         }
       }
 
-      // 2. 非対応ブラウザ（iOS Safariなど）またはフォールバック時
+      // 2. iOS Safari または 非対応環境のダウンロードフォールバック
       try {
         const file = new File([content], filename, {
           type: mimeType,
@@ -1236,35 +1506,35 @@
       const reader = new FileReader();
       reader.onload = function(e) {
         try {
-          const data = JSON.parse(e.target.result);
-          let count = 0;
-          data.forEach(item => {
-            if (item.id && item.lat !== undefined && item.lng !== undefined && item.name) {
-              if (!properties.find(p => p.id === item.id)) {
-                item.lat = parseFloat(item.lat);
-                item.lng = parseFloat(item.lng);
-                item.isDeleted = false;
-                // 作成日が欠けている場合はタイムスタンプまたは現在時刻で復元
-                if (!item.createdAt) {
-                  const d = item.timestamp ? new Date(item.timestamp) : new Date();
-                  item.createdAt = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-                }
-                properties.push(item);
-                count++;
-              }
-            }
-          });
-          
-          if(count > 0) {
-            saveToLocal();
-            renderList();
-            renderMapMarkers();
-            customAlert(`データを復元しました。\n新規追加: ${count}件`);
-          } else {
-            customAlert('新しいデータはありませんでした。');
+          const parsed = JSON.parse(e.target.result);
+          // 新形式エンベロープ (records) も旧形式フラット配列も透過的にサポート
+          const incomingList = Array.isArray(parsed) ? parsed : (parsed.records && Array.isArray(parsed.records) ? parsed.records : null);
+
+          if (!incomingList) {
+            throw new Error('Invalid JSON schema');
           }
+
+          const result = mergeRecords(properties, incomingList);
+          properties = result.records;
+          
+          persist();
+          renderList();
+          renderMapMarkers();
+          updateTrashBadge();
+
+          const s = result.stats;
+          customAlert(
+            `データ同期が完了しました。\n` +
+            `--------------------\n` +
+            `・新規追加: ${s.added} 件\n` +
+            `・内容更新: ${s.updated} 件\n` +
+            `・削除反映: ${s.deleted} 件\n` +
+            `・復元: ${s.restored} 件\n` +
+            `・変更なし: ${s.unchanged} 件`
+          );
         } catch (err) {
-          customAlert("ファイルの読み込みに失敗しました。\n正しいJSONファイルを選択してください。");
+          console.error(err);
+          customAlert("ファイルの読み込みに失敗しました。\n正しいBukkenMemo JSONファイルを選択してください。");
         }
         event.target.value = ''; 
       };
