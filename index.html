@@ -391,6 +391,20 @@
     
     // Load Data
     let properties = JSON.parse(localStorage.getItem('BukkenMemo_properties') || '[]');
+
+    // マイグレーション: 過去データや作成日が欠落している物件に正確な作成日時を自動付与
+    let needsMigrationSave = false;
+    properties = properties.map(p => {
+      if (!p.createdAt) {
+        needsMigrationSave = true;
+        const d = p.timestamp ? new Date(p.timestamp) : new Date();
+        p.createdAt = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      }
+      return p;
+    });
+    if (needsMigrationSave) {
+      localStorage.setItem('BukkenMemo_properties', JSON.stringify(properties));
+    }
     
     let currentMainView = 'map';
     let geocodeSeq = 0;
@@ -735,9 +749,11 @@
       if (id) {
         const idx = properties.findIndex(p => p.id === id);
         if (idx !== -1) {
+          const prev = properties[idx];
           properties[idx] = { 
-            ...properties[idx], 
+            ...prev, 
             name, type, area, address, memo, lat, lng,
+            createdAt: prev.createdAt || dateStr, // 作成日を確実に保持・補完
             updatedAt: dateStr,
             timestamp: Date.now() 
           };
@@ -786,7 +802,8 @@
       const card = document.createElement('div');
       card.className = 'relative overflow-hidden bg-red-500 border-b border-gray-100 last:border-b-0 group';
       
-      let dateHtml = `<span class="mr-3"><i class="fa-regular fa-calendar mr-1"></i>作成: ${p.createdAt.split(' ')[0]}</span>`;
+      const createdDisplay = p.createdAt ? p.createdAt.split(' ')[0] : '-';
+      let dateHtml = `<span class="mr-3"><i class="fa-regular fa-calendar mr-1"></i>作成: ${createdDisplay}</span>`;
       if (p.updatedAt) {
           dateHtml += `<span class="text-blue-500 mr-3"><i class="fa-solid fa-clock-rotate-left mr-1"></i>更新: ${p.updatedAt.split(' ')[0]}</span>`;
       }
@@ -1136,9 +1153,17 @@
       } else if (exportType === 'csv') {
         const headers = ['ID', '作成日時', '更新日時', '物件名', '種別', '面積(坪)', '住所', '緯度', '経度', 'メモ', 'フラッグ'];
         const rows = activeProps.map(p => [
-          `"${p.id}"`, `"${p.createdAt}"`, `"${p.updatedAt || ''}"`, `"${(p.name || '').replace(/"/g, '""')}"`, 
-          `"${p.type}"`, `"${p.area || ''}"`, `"${(p.address || '').replace(/"/g, '""')}"`, `"${p.lat}"`, `"${p.lng}"`,
-          `"${(p.memo || '').replace(/"/g, '""')}"`, `"${p.flagged ? 'TRUE' : 'FALSE'}"`
+          `"${p.id || ''}"`, 
+          `"${p.createdAt || ''}"`, 
+          `"${p.updatedAt || ''}"`, 
+          `"${(p.name || '').replace(/"/g, '""')}"`, 
+          `"${p.type || ''}"`, 
+          `"${p.area || ''}"`, 
+          `"${(p.address || '').replace(/"/g, '""')}"`, 
+          `"${p.lat !== undefined ? p.lat : ''}"`, 
+          `"${p.lng !== undefined ? p.lng : ''}"`,
+          `"${(p.memo || '').replace(/"/g, '""')}"`, 
+          `"${p.flagged ? 'TRUE' : 'FALSE'}"`
         ]);
         content = "\uFEFF" + [headers.map(h => `"${h}"`), ...rows].map(e => e.join(",")).join("\n");
         mimeType = 'text/csv;charset=utf-8;';
@@ -1214,9 +1239,16 @@
           const data = JSON.parse(e.target.result);
           let count = 0;
           data.forEach(item => {
-            if (item.id && typeof item.lat === 'number' && typeof item.lng === 'number' && item.name) {
+            if (item.id && item.lat !== undefined && item.lng !== undefined && item.name) {
               if (!properties.find(p => p.id === item.id)) {
+                item.lat = parseFloat(item.lat);
+                item.lng = parseFloat(item.lng);
                 item.isDeleted = false;
+                // 作成日が欠けている場合はタイムスタンプまたは現在時刻で復元
+                if (!item.createdAt) {
+                  const d = item.timestamp ? new Date(item.timestamp) : new Date();
+                  item.createdAt = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                }
                 properties.push(item);
                 count++;
               }
