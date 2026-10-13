@@ -3,534 +3,634 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="BukkenMemo">
-  
   <title>BukkenMemo</title>
   
-  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/854/854878.png">
-  <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/854/854878.png">
+  <!-- Favicon & PWA Icons (SVG Pin Data URI) -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='40' r='30' fill='%232563eb'/%3E%3Cpath d='M35,62 L50,92 L65,62 Z' fill='%232563eb'/%3E%3Ccircle cx='50' cy='40' r='12' fill='%23ffffff'/%3E%3C/svg%3E">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232563eb'/%3E%3Ccircle cx='50' cy='42' r='24' fill='%23ffffff'/%3E%3Ccircle cx='50' cy='42' r='10' fill='%232563eb'/%3E%3Cpath d='M38,60 L50,84 L62,60 Z' fill='%23ffffff'/%3E%3C/svg%3E">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="BukkenMemo">
 
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+  <!-- Leaflet.js -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
-    :root {
-      --safe-top: env(safe-area-inset-top, 0px);
-      --safe-bottom: env(safe-area-inset-bottom, 0px);
-    }
+    /* Safe Area & Mobile layout optimization */
     body {
-      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
-      overscroll-behavior-y: none;
-      background-color: #f3f4f6;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      touch-action: pan-y;
+      -webkit-tap-highlight-color: transparent;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
     }
-    .env-safe-top { padding-top: var(--safe-top); }
-    .pb-safe { padding-bottom: calc(var(--safe-bottom) + 64px); }
-    
-    #map { 
-      width: 100%;
+    #map {
       height: 100%;
-      z-index: 10; 
+      width: 100%;
+      z-index: 10;
     }
-    
-    /* Leaflet Overrides */
-    .leaflet-popup-content-wrapper {
-      border-radius: 14px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+    .custom-popup .leaflet-popup-content-wrapper {
       padding: 0;
+      border-radius: 16px;
       overflow: hidden;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
     }
-    .leaflet-popup-content {
+    .custom-popup .leaflet-popup-content {
       margin: 0;
-      min-width: 280px;
+      line-height: 1.5;
     }
-    .leaflet-container a.leaflet-popup-close-button {
-      color: #6b7280;
-      padding: 8px;
+    /* Custom Pin Marker Style (📍) */
+    .pin-marker-container {
+      position: relative;
+      width: 34px;
+      height: 44px;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
-    .custom-div-icon {
-      background: transparent;
-      border: none;
-    }
-    
-    /* Target Marker (新規登録用のターゲット) */
-    .target-marker {
+    .pin-head {
       width: 24px;
       height: 24px;
-      background-color: #1d4ed8;
-      border: 3px solid white;
       border-radius: 50%;
-      box-shadow: 0 0 10px rgba(0,0,0,0.5);
-      position: relative;
-    }
-    .target-marker::after {
-      content: '';
+      box-shadow: 0 3px 6px rgba(0,0,0,0.35);
       position: absolute;
-      top: -10px; left: -10px; right: -10px; bottom: -10px;
+      top: 2px;
+      left: 5px;
+      border: 2px solid #ffffff;
+      z-index: 2;
+    }
+    .pin-needle {
+      position: absolute;
+      top: 18px;
+      left: 15px;
+      width: 4px;
+      height: 22px;
+      background: linear-gradient(to right, #9ca3af, #4b5563);
+      border-radius: 2px;
+      box-shadow: 1px 2px 4px rgba(0,0,0,0.25);
+      z-index: 1;
+    }
+    .pin-flag-badge {
+      position: absolute;
+      top: -6px;
+      right: -4px;
+      background-color: #ef4444;
+      color: white;
+      font-size: 11px;
+      width: 18px;
+      height: 18px;
       border-radius: 50%;
-      background: rgba(29, 78, 216, 0.2);
-      animation: pulse 2s infinite;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1.5px solid white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      z-index: 4;
     }
-    @keyframes pulse {
-      0% { transform: scale(0.5); opacity: 1; }
-      100% { transform: scale(2); opacity: 0; }
+    /* Hide scrollbars for slick mobile UI */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
     }
-
-    /* Swipe Content Transition */
-    .swipe-content {
-      will-change: transform;
-      touch-action: pan-y;
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
     }
   </style>
 </head>
-<body class="h-screen w-full flex flex-col overflow-hidden select-none">
+<body class="bg-gray-100 h-screen w-screen overflow-hidden flex flex-col select-none">
 
-  <div id="storage-warning-bar" class="hidden bg-amber-500 text-white text-xs px-4 py-2 text-center font-bold z-[100] flex justify-between items-center shadow-md">
-    <span id="storage-warning-msg" class="flex-1 text-left"></span>
-    <button onclick="document.getElementById('storage-warning-bar').classList.add('hidden')" class="ml-2 text-white/80 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+  <!-- Storage Warning Banner (出現時) -->
+  <div id="storage-warning-bar" class="hidden bg-amber-500 text-white text-xs px-3 py-2 flex items-center justify-between z-[90]">
+    <div class="flex items-center space-x-2 truncate">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <span id="storage-warning-text" class="truncate font-medium">保存警告</span>
+    </div>
+    <button onclick="document.getElementById('storage-warning-bar').classList.add('hidden')" class="text-white hover:text-amber-100 ml-2">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
   </div>
 
-  <header class="bg-blue-800 text-white shadow-md z-20 relative env-safe-top shrink-0">
-    <div class="flex justify-between items-center px-4 py-3">
-      <div class="flex items-center space-x-3">
-        <i class="fa-solid fa-map-location-dot text-xl"></i>
-        <h1 class="text-lg font-bold tracking-wider">BukkenMemo</h1>
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center justify-between shadow-sm z-30 shrink-0">
+    <div class="flex items-center space-x-2">
+      <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow">
+        <i class="fa-solid fa-location-dot text-base"></i>
       </div>
-      <div class="flex items-center space-x-2">
-        <button onclick="window.showGuideModal()" title="同期・使い方ガイド" class="w-9 h-9 rounded-full bg-blue-700 hover:bg-blue-600 flex items-center justify-center transition-colors">
-          <i class="fa-solid fa-circle-question text-sm"></i>
-        </button>
-        <button onclick="window.showTrashModal()" title="ゴミ箱" class="w-9 h-9 rounded-full bg-blue-700 hover:bg-blue-600 flex items-center justify-center transition-colors relative">
-          <i class="fa-solid fa-trash-can text-sm"></i>
-          <span id="trash-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold"></span>
-        </button>
+      <div>
+        <h1 class="font-extrabold text-gray-800 text-base leading-tight tracking-tight">BukkenMemo</h1>
+        <p class="text-[10px] text-gray-400 font-semibold leading-none">物件・現地調査メモ</p>
       </div>
+    </div>
+    
+    <div class="flex items-center space-x-1.5">
+      <!-- Sync Guide Button -->
+      <button onclick="window.openGuideModal()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center text-sm transition-colors" title="同期・使い方ガイド">
+        <i class="fa-solid fa-question"></i>
+      </button>
     </div>
   </header>
 
-  <!-- Settings Menu -->
-  <div id="settings-menu" class="absolute right-4 bg-white rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.2)] py-2 z-50 hidden border border-gray-100 w-64 origin-bottom-right transition-all" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 76px);">
-    <div class="px-4 py-1.5 text-[11px] font-bold text-gray-400 border-b border-gray-50 flex items-center justify-between">
-      <span>データバックアップ・同期</span>
-      <span id="storage-status-dot" class="w-2 h-2 rounded-full bg-green-500" title="ストレージ正常"></span>
-    </div>
-    <button onclick="window.exportData('json')" class="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center">
-      <i class="fa-solid fa-file-code w-6 text-blue-500"></i>JSONでバックアップ
-    </button>
-    <button onclick="window.exportData('csv')" class="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center">
-      <i class="fa-solid fa-file-csv w-6 text-emerald-500"></i>CSVでバックアップ
-    </button>
-    <label class="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center cursor-pointer border-t border-gray-100">
-      <i class="fa-solid fa-arrow-up-from-bracket w-6 text-purple-500"></i>データを取り込む (JSON)
-      <input type="file" accept=".json" class="hidden" onchange="window.importData(event)">
-    </label>
-  </div>
-
-  <main class="flex-1 relative overflow-hidden flex flex-col bg-gray-50">
+  <!-- Main Content Container -->
+  <main class="flex-1 relative overflow-hidden">
     
-    <!-- View: MAP -->
-    <div id="view-map" class="absolute inset-0 flex flex-col z-10 transition-opacity duration-300">
-      
-      <!-- Search Bar & Layer Toggle -->
-      <div class="absolute top-4 left-4 right-4 flex space-x-2 z-[1000] pointer-events-auto">
-        <div class="flex-1 flex bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 items-center pl-3">
-          <i class="fa-solid fa-magnifying-glass text-gray-400"></i>
-          <input type="text" id="map-search-input" placeholder="住所や施設名を検索" class="flex-1 px-3 py-3 text-sm text-gray-700 outline-none" onkeypress="if(event.key==='Enter') window.searchAddress()">
-          <button onclick="window.searchAddress()" class="px-4 py-3 bg-gray-50 text-blue-600 hover:bg-blue-50 border-l border-gray-100 font-bold transition-colors">
-            検索
+    <!-- MAP VIEW -->
+    <div id="view-map" class="w-full h-full relative">
+      <!-- Search Bar -->
+      <div class="absolute top-3 inset-x-3 z-[25] flex items-center space-x-2">
+        <div class="flex-1 bg-white/95 backdrop-blur rounded-2xl shadow-lg border border-gray-100 flex items-center px-3 py-2">
+          <i class="fa-solid fa-magnifying-glass text-gray-400 mr-2 text-sm"></i>
+          <input type="text" id="map-search-input" placeholder="住所・施設名で場所を検索..." class="w-full bg-transparent text-sm focus:outline-none text-gray-800 placeholder-gray-400" onkeydown="if(event.key==='Enter') window.searchAddress()">
+          <button onclick="window.searchAddress()" class="ml-1 text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg hover:bg-blue-100 active:bg-blue-200 transition-colors">検索</button>
+        </div>
+      </div>
+
+      <!-- Map Layer Switcher Button & Menu -->
+      <div class="absolute top-16 right-3 z-[25]">
+        <button onclick="window.toggleLayerMenu()" class="w-10 h-10 rounded-xl bg-white/95 backdrop-blur shadow-lg border border-gray-100 flex items-center justify-center text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-all">
+          <i class="fa-solid fa-layer-group text-sm"></i>
+        </button>
+        <div id="layer-menu" class="hidden absolute right-0 mt-2 w-36 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden text-xs py-1 z-30">
+          <button onclick="window.setMapLayer('google')" class="w-full text-left px-3 py-2 flex items-center justify-between hover:bg-blue-50 transition-colors">
+            <span class="font-bold text-gray-700">Google マップ</span>
+            <i id="layer-check-google" class="fa-solid fa-check text-blue-600 text-xs"></i>
+          </button>
+          <button onclick="window.setMapLayer('gsi')" class="w-full text-left px-3 py-2 flex items-center justify-between hover:bg-blue-50 transition-colors">
+            <span class="font-bold text-gray-700">国土地理院</span>
+            <i id="layer-check-gsi" class="fa-solid fa-check text-blue-600 text-xs hidden"></i>
+          </button>
+          <button onclick="window.setMapLayer('photo')" class="w-full text-left px-3 py-2 flex items-center justify-between hover:bg-blue-50 transition-colors">
+            <span class="font-bold text-gray-700">航空写真</span>
+            <i id="layer-check-photo" class="fa-solid fa-check text-blue-600 text-xs hidden"></i>
           </button>
         </div>
-        <button onclick="window.toggleLayerMenu()" class="w-12 h-12 bg-white rounded-xl shadow-lg flex items-center justify-center text-gray-600 hover:text-blue-600 transition-colors border border-gray-100 shrink-0">
-          <i class="fa-solid fa-layer-group text-lg"></i>
-        </button>
       </div>
 
-      <!-- Layer Menu -->
-      <div id="layer-menu" class="absolute top-18 right-4 bg-white rounded-xl shadow-xl py-2 z-[1001] hidden border border-gray-100 w-48 pointer-events-auto">
-        <div class="px-4 py-2 text-xs font-bold text-gray-400 border-b border-gray-50">地図の種類</div>
-        <button onclick="window.switchLayer('google')" class="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between">
-          <span>Google マップ</span><i class="fa-solid fa-check text-blue-600 hidden layer-check-google"></i>
-        </button>
-        <button onclick="window.switchLayer('gsi')" class="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between">
-          <span>国土地理院</span><i class="fa-solid fa-check text-blue-600 hidden layer-check-gsi"></i>
-        </button>
-        <button onclick="window.switchLayer('googleSat')" class="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between">
-          <span>航空写真</span><i class="fa-solid fa-check text-blue-600 hidden layer-check-googleSat"></i>
-        </button>
-      </div>
-
-      <div id="map" class="flex-1 w-full"></div>
-
-      <!-- Locate Me -->
-      <button onclick="window.locateMe()" class="absolute bottom-[160px] right-4 z-[1000] w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-blue-600 border border-gray-100 hover:bg-blue-50 transition-colors pointer-events-auto">
-        <i class="fa-solid fa-location-crosshairs text-xl"></i>
+      <!-- Current Location GPS Button -->
+      <button onclick="window.moveToCurrentLocation()" class="absolute bottom-24 right-3 z-[25] w-12 h-12 rounded-2xl bg-white/95 backdrop-blur shadow-lg border border-gray-100 flex items-center justify-center text-blue-600 hover:bg-gray-50 active:bg-gray-100 transition-all" title="現在地">
+        <i class="fa-solid fa-crosshairs text-lg"></i>
       </button>
 
-      <!-- Bottom Panel (Address & Register) -->
-      <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl shadow-[0_-10px_30px_rgba(0,0,0,0.1)] p-5 z-[1000] pointer-events-auto pb-safe">
-        <div class="flex items-start mb-4">
-          <i class="fa-solid fa-location-dot text-blue-600 mt-1 mr-3 text-lg"></i>
-          <div class="flex-1 min-w-0">
-            <p class="text-xs text-gray-500 font-bold mb-1">新規登録ピンの位置</p>
-            <p id="current-address" class="text-gray-800 font-bold text-sm leading-snug line-clamp-2">現在地を取得中...</p>
+      <!-- Map Canvas -->
+      <div id="map"></div>
+
+      <!-- Address Display & Simple Registration Footer on Map -->
+      <div class="absolute bottom-3 inset-x-3 z-[25] flex flex-col space-y-2">
+        <div class="bg-white/95 backdrop-blur rounded-2xl shadow-lg border border-gray-100 p-3 flex items-center justify-between space-x-2">
+          <div class="flex items-center min-w-0 flex-1">
+            <i class="fa-solid fa-location-dot text-red-500 mr-2 shrink-0"></i>
+            <span id="current-address" class="text-xs font-bold text-gray-700 truncate">ピンをタップして場所を選択...</span>
           </div>
+          <button onclick="window.openFormModal()" class="shrink-0 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-md transition-colors flex items-center space-x-1">
+            <i class="fa-solid fa-plus text-[11px]"></i>
+            <span>登録</span>
+          </button>
         </div>
-        <button onclick="window.openFormModal()" class="w-full bg-blue-800 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-md transition-colors flex justify-center items-center">
-          <i class="fa-solid fa-pen-to-square mr-2"></i>登録
-        </button>
       </div>
     </div>
 
-    <!-- View: LIST -->
-    <div id="view-list" class="absolute inset-0 bg-gray-50 z-0 opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto pb-safe">
-      <div class="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center z-20 shadow-sm">
-        <h2 class="font-bold text-gray-700 flex items-center"><i class="fa-solid fa-list-ul mr-2 text-blue-600"></i>登録物件リスト</h2>
-        <span id="list-count" class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold">0件</span>
+    <!-- LIST VIEW -->
+    <div id="view-list" class="w-full h-full hidden flex flex-col bg-gray-50">
+      <div class="p-3 bg-white border-b border-gray-200 flex items-center justify-between shrink-0">
+        <div class="flex items-center space-x-2">
+          <span class="text-xs font-bold text-gray-500">登録件数:</span>
+          <span id="list-count-badge" class="bg-blue-100 text-blue-700 text-xs font-extrabold px-2 py-0.5 rounded-full">0件</span>
+        </div>
+        <div class="text-[11px] text-gray-400">※左スワイプで削除</div>
       </div>
-      <div id="property-list" class="p-0">
-        <!-- List items injected here -->
+      <div id="property-list" class="flex-1 overflow-y-auto divide-y divide-gray-100">
+        <!-- Rendered property cards -->
       </div>
     </div>
+
+    <!-- TRASH VIEW -->
+    <div id="view-trash" class="w-full h-full hidden flex flex-col bg-gray-50">
+      <div class="p-3 bg-white border-b border-gray-200 flex items-center justify-between shrink-0">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-trash-can text-red-500 text-sm"></i>
+          <span class="text-xs font-bold text-gray-700">ゴミ箱</span>
+          <span id="trash-count-badge" class="bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">0件</span>
+        </div>
+        <button onclick="window.emptyTrash()" class="text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg transition-colors">
+          全て削除
+        </button>
+      </div>
+      <div id="trash-list" class="flex-1 overflow-y-auto divide-y divide-gray-100">
+        <!-- Rendered trash cards -->
+      </div>
+    </div>
+
   </main>
 
-  <nav class="bg-white border-t border-gray-200 z-30 shrink-0 pb-[env(safe-area-inset-bottom,0px)] relative">
-    <div class="flex justify-around items-center h-16">
-      <button onclick="window.switchMainView('map')" id="nav-map" class="flex-1 flex flex-col items-center justify-center text-blue-600 transition-colors">
-        <i class="fa-solid fa-map mb-1 text-xl"></i>
-        <span class="text-[10px] font-bold">マップ</span>
-      </button>
-      <button onclick="window.switchMainView('list')" id="nav-list" class="flex-1 flex flex-col items-center justify-center text-gray-400 hover:text-blue-500 transition-colors">
-        <i class="fa-solid fa-list mb-1 text-xl"></i>
-        <span class="text-[10px] font-bold">リスト</span>
-      </button>
-      <button onclick="window.toggleSettingsMenu()" id="nav-settings" class="flex-1 flex flex-col items-center justify-center text-gray-400 hover:text-blue-500 transition-colors relative">
-        <i class="fa-solid fa-database mb-1 text-xl"></i>
-        <span class="text-[10px] font-bold">データ管理</span>
-      </button>
-    </div>
+  <!-- Bottom Navigation Bar -->
+  <nav class="bg-white border-t border-gray-200 py-1.5 px-4 flex justify-around items-center z-30 shrink-0 shadow-lg">
+    <button onclick="window.switchTab('map')" id="nav-btn-map" class="flex flex-col items-center text-blue-600 py-1 px-3">
+      <i class="fa-solid fa-map-location-dot text-lg mb-0.5"></i>
+      <span class="text-[10px] font-bold">マップ</span>
+    </button>
+    <button onclick="window.switchTab('list')" id="nav-btn-list" class="flex flex-col items-center text-gray-400 py-1 px-3">
+      <i class="fa-solid fa-list-ul text-lg mb-0.5"></i>
+      <span class="text-[10px] font-bold">リスト</span>
+    </button>
+    <button onclick="window.switchTab('trash')" id="nav-btn-trash" class="flex flex-col items-center text-gray-400 py-1 px-3">
+      <i class="fa-solid fa-trash text-lg mb-0.5"></i>
+      <span class="text-[10px] font-bold">ゴミ箱</span>
+    </button>
+    <button onclick="window.toggleDataMenu()" id="nav-btn-data" class="flex flex-col items-center text-gray-400 py-1 px-3">
+      <i class="fa-solid fa-floppy-disk text-lg mb-0.5"></i>
+      <span class="text-[10px] font-bold">保存・復元</span>
+    </button>
   </nav>
 
-  <!-- Detail Modal -->
-  <div id="detail-modal" class="fixed inset-0 bg-black/60 z-50 hidden opacity-0 transition-opacity duration-300 flex items-end sm:items-center justify-center">
-    <div class="bg-white w-full sm:w-[500px] max-h-[85vh] rounded-t-3xl sm:rounded-2xl flex flex-col shadow-2xl transform translate-y-full sm:translate-y-0 transition-transform duration-300" id="detail-content">
-      <div class="flex justify-between items-center p-4 border-b border-gray-100">
-        <span id="detail-type-badge" class="px-3 py-1 rounded-full text-xs font-bold text-white bg-blue-600">種別</span>
-        <button onclick="window.closeDetailModal()" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
+  <!-- Data Management Popup Menu (From Bottom Bar) -->
+  <div id="data-menu-backdrop" class="fixed inset-0 bg-black/40 z-40 hidden" onclick="window.toggleDataMenu()"></div>
+  <div id="data-menu-modal" class="fixed bottom-14 right-3 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 z-50 hidden transition-all duration-200">
+    <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-3">
+      <div class="flex items-center space-x-2">
+        <i class="fa-solid fa-cloud-arrow-up text-blue-600"></i>
+        <span class="text-sm font-bold text-gray-800">データ管理 (バックアップ)</span>
+      </div>
+      <button onclick="window.toggleDataMenu()" class="text-gray-400 hover:text-gray-600 text-sm">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <!-- Last import status banner -->
+    <div id="last-imported-banner" class="hidden bg-blue-50 border border-blue-100 rounded-xl p-2.5 mb-3 text-[11px] text-blue-800">
+      <span class="font-bold">前回取込ファイル:</span><br>
+      <span id="last-imported-filename" class="font-mono text-[10px] break-all">なし</span>
+    </div>
+
+    <div class="space-y-2">
+      <button onclick="window.exportBackup('json')" class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 px-3 text-xs font-bold flex items-center justify-between transition-colors shadow">
+        <span class="flex items-center"><i class="fa-solid fa-file-code mr-2"></i>JSONでバックアップ</span>
+        <i class="fa-solid fa-download text-xs"></i>
+      </button>
+      
+      <button onclick="document.getElementById('import-file-input').click()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl py-2.5 px-3 text-xs font-bold flex items-center justify-between transition-colors">
+        <span class="flex items-center"><i class="fa-solid fa-file-import mr-2 text-blue-600"></i>データを取り込む (JSON)</span>
+        <i class="fa-solid fa-upload text-xs text-gray-400"></i>
+      </button>
+      <input type="file" id="import-file-input" accept=".json" class="hidden" onchange="window.handleImportFile(event)">
+
+      <button onclick="window.exportBackup('csv')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-2.5 px-3 text-xs font-bold flex items-center justify-between transition-colors shadow">
+        <span class="flex items-center"><i class="fa-solid fa-file-csv mr-2"></i>CSVエクスポート (Excel用)</span>
+        <i class="fa-solid fa-download text-xs"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Property Detail Modal (Slide Up) -->
+  <div id="detail-modal" class="fixed inset-0 bg-black/60 z-[80] hidden opacity-0 transition-opacity duration-300 flex items-end justify-center">
+    <div id="detail-content" class="bg-white w-full max-w-lg rounded-t-3xl max-h-[85vh] flex flex-col transform translate-y-full transition-transform duration-300 shadow-2xl">
+      <!-- Header -->
+      <div class="p-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+        <div class="flex items-center space-x-2">
+          <span id="detail-type-badge" class="px-2.5 py-1 rounded-full text-xs font-extrabold text-white">種別</span>
+          <h2 id="detail-title" class="font-bold text-gray-800 text-base truncate max-w-[220px]">物件詳細</h2>
+        </div>
+        <button onclick="window.closeDetailModal()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center text-sm">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
-      <div class="p-5 overflow-y-auto flex-1 space-y-4">
-        <div>
-          <div class="flex items-start justify-between">
-            <h3 class="text-xl font-bold text-gray-900 leading-snug break-words" id="detail-name">物件名</h3>
-            <span id="detail-flag-badge" class="ml-2 hidden text-red-500 text-sm py-1 shrink-0"><i class="fa-solid fa-flag mr-1"></i>注目</span>
-          </div>
-          <div class="text-xs text-gray-400 mt-1 flex flex-wrap gap-x-3" id="detail-dates"></div>
+      <!-- Body Scrollable -->
+      <div class="p-4 overflow-y-auto space-y-4 text-xs">
+        
+        <!-- Dates -->
+        <div class="flex flex-wrap gap-2 text-gray-400 text-[11px]">
+          <div><i class="fa-regular fa-calendar mr-1"></i>作成: <span id="detail-created" class="text-gray-600 font-bold">-</span></div>
+          <div id="detail-updated-container" class="hidden"><i class="fa-solid fa-clock-rotate-left mr-1 text-blue-500"></i>更新: <span id="detail-updated" class="text-blue-600 font-bold">-</span></div>
         </div>
 
-        <div id="detail-area-container" class="bg-gray-50 p-3.5 rounded-xl border border-gray-100 hidden">
-          <p class="text-xs font-bold text-gray-400 mb-1 flex items-center"><i class="fa-solid fa-ruler-combined mr-1.5 text-blue-600"></i>面積</p>
-          <p id="detail-area" class="text-sm font-bold text-gray-800 break-words leading-relaxed"></p>
+        <!-- Area (坪) -->
+        <div id="detail-area-container" class="bg-emerald-50 border border-emerald-100 p-3 rounded-2xl hidden">
+          <p class="text-[10px] font-bold text-emerald-600 uppercase mb-0.5"><i class="fa-solid fa-ruler-combined mr-1"></i>面積</p>
+          <p id="detail-area" class="text-sm font-extrabold text-emerald-800"></p>
         </div>
 
-        <div class="bg-gray-50 p-3.5 rounded-xl border border-gray-100">
-          <p class="text-xs font-bold text-gray-400 mb-1 flex items-center"><i class="fa-solid fa-location-dot mr-1.5 text-blue-600"></i>住所</p>
-          <p id="detail-address" class="text-sm text-gray-800 break-words leading-relaxed"></p>
+        <!-- Photos Gallery -->
+        <div id="detail-photos-container" class="hidden">
+          <p class="text-gray-400 font-bold mb-2 flex items-center">
+            <i class="fa-solid fa-images text-blue-600 mr-1.5"></i>物件写真 (<span id="detail-photo-count">0</span>/3)
+          </p>
+          <div id="detail-photos-list" class="grid grid-cols-3 gap-2"></div>
         </div>
 
-        <div class="bg-gray-50 p-3.5 rounded-xl border border-gray-100">
-          <p class="text-xs font-bold text-gray-400 mb-1 flex items-center"><i class="fa-solid fa-comment-dots mr-1.5 text-blue-600"></i>メモ</p>
-          <p id="detail-memo" class="text-sm text-gray-800 break-words whitespace-pre-wrap leading-relaxed min-h-[40px]"></p>
+        <!-- Address -->
+        <div class="bg-gray-50 border border-gray-100 p-3 rounded-2xl">
+          <p class="text-[10px] font-bold text-gray-400 uppercase mb-0.5"><i class="fa-solid fa-location-dot text-blue-600 mr-1"></i>住所</p>
+          <p id="detail-address" class="text-xs font-bold text-gray-800 break-words leading-relaxed"></p>
         </div>
+
+        <!-- Memo -->
+        <div class="bg-gray-50 border border-gray-100 p-3 rounded-2xl">
+          <p class="text-[10px] font-bold text-gray-400 uppercase mb-0.5"><i class="fa-solid fa-note-sticky text-amber-500 mr-1"></i>メモ</p>
+          <p id="detail-memo" class="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed break-words"></p>
+        </div>
+
       </div>
 
-      <div class="p-4 border-t border-gray-100 bg-white flex flex-col space-y-2 pb-[calc(env(safe-area-inset-bottom,0px)+16px)]">
-        <a id="detail-route-btn" href="#" target="_blank" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-colors flex justify-center items-center text-sm" style="text-decoration:none; color:#ffffff !important;">
-          <i class="fa-solid fa-route mr-2" style="color:#ffffff !important;"></i>Google マップでルート案内
+      <!-- Action Footer -->
+      <div class="p-3 border-t border-gray-100 bg-gray-50 rounded-b-3xl flex items-center space-x-2 shrink-0">
+        <a id="detail-route-btn" href="#" target="_blank" rel="noopener noreferrer" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-center text-xs flex items-center justify-center space-x-1.5 shadow">
+          <i class="fa-solid fa-diamond-turn-right"></i>
+          <span>ルート案内</span>
         </a>
-        <div class="flex space-x-2">
-          <button id="detail-map-btn" class="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-colors flex justify-center items-center">
-            <i class="fa-solid fa-map-location-dot mr-1.5 text-blue-600"></i>地図で表示
-          </button>
-          <button id="detail-edit-btn" class="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-colors flex justify-center items-center">
-            <i class="fa-solid fa-pen mr-1.5 text-gray-600"></i>編集
-          </button>
-          <button id="detail-delete-btn" class="w-11 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs transition-colors flex justify-center items-center shrink-0">
-            <i class="fa-solid fa-trash-can"></i>
-          </button>
-        </div>
+        <button id="detail-edit-btn" onclick="" class="px-4 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-xl text-xs flex items-center">
+          <i class="fa-solid fa-pen mr-1"></i>編集
+        </button>
+        <button id="detail-delete-btn" onclick="" class="px-3 py-2.5 bg-red-100 hover:bg-red-200 text-red-600 font-bold rounded-xl text-xs flex items-center">
+          <i class="fa-solid fa-trash"></i>
+        </button>
       </div>
     </div>
   </div>
 
-  <!-- Registration/Edit Modal -->
-  <div id="form-modal" class="fixed inset-0 bg-black/60 z-50 hidden opacity-0 transition-opacity duration-300 flex items-end sm:items-center justify-center">
-    <div class="bg-white w-full sm:w-[500px] h-[90vh] sm:h-auto sm:max-h-[90vh] rounded-t-3xl sm:rounded-2xl flex flex-col shadow-2xl transform translate-y-full sm:translate-y-0 transition-transform duration-300" id="form-content">
-      <div class="flex justify-between items-center p-4 border-b border-gray-100">
-        <h3 class="text-lg font-bold text-gray-800" id="modal-title">地点情報</h3>
-        <button onclick="window.closeFormModal()" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
+  <!-- Photo Lightbox Modal (拡大表示) -->
+  <div id="photo-lightbox" class="fixed inset-0 bg-black/95 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-2" onclick="window.closePhotoLightbox()">
+    <button class="absolute top-4 right-4 text-white text-2xl w-10 h-10 flex items-center justify-center bg-black/50 rounded-full hover:bg-black/80">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+    <img id="lightbox-img" src="" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl transition-transform" onclick="event.stopPropagation()">
+  </div>
+
+  <!-- Registration / Edit Modal -->
+  <div id="form-modal" class="fixed inset-0 bg-black/60 z-[70] hidden opacity-0 transition-opacity duration-300 flex items-end justify-center">
+    <div id="form-content" class="bg-white w-full max-w-lg rounded-t-3xl max-h-[90vh] flex flex-col transform translate-y-full transition-transform duration-300 shadow-2xl">
+      
+      <div class="p-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+        <h2 id="modal-title" class="font-bold text-gray-800 text-base">地点情報を登録</h2>
+        <button onclick="window.closeFormModal()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center text-sm">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
-      
-      <div class="p-5 overflow-y-auto flex-1 space-y-5">
+
+      <form id="property-form" onsubmit="window.saveProperty(event)" class="p-4 overflow-y-auto space-y-3.5 flex-1 text-xs">
         <input type="hidden" id="form-id">
         <input type="hidden" id="form-lat">
         <input type="hidden" id="form-lng">
-        
+
+        <!-- Name -->
         <div>
-          <label class="block text-xs font-bold text-gray-500 mb-1.5">物件名 / 施設名</label>
-          <input type="text" id="form-name" placeholder="未入力の場合は自動で日時が登録されます" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 transition-all">
-        </div>
-        
-        <div>
-          <label class="block text-xs font-bold text-gray-500 mb-1.5">種別</label>
-          <div class="relative">
-            <select id="form-type" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 appearance-none cursor-pointer">
-              <option value="ロードサイド物件">🚗 ロードサイド物件</option>
-              <option value="ビルイン物件">🏢 ビルイン物件</option>
-              <option value="クライアント所在地">💼 クライアント所在地</option>
-              <option value="地権者">🏠 地権者</option>
-              <option value="未分類">❓ 未分類</option>
-            </select>
-            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-              <i class="fa-solid fa-chevron-down text-xs"></i>
-            </div>
-          </div>
+          <label class="block font-bold text-gray-600 mb-1">物件名・施設名 <span class="text-[10px] text-gray-400 font-normal">(空欄時は登録日時)</span></label>
+          <input type="text" id="form-name" placeholder="例: ○○ビル、空き地" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
 
+        <!-- Type -->
         <div>
-          <label class="block text-xs font-bold text-gray-500 mb-1.5">面積（坪）</label>
+          <label class="block font-bold text-gray-600 mb-1">種別</label>
+          <select id="form-type" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="ロードサイド物件">ロードサイド物件</option>
+            <option value="ビルイン物件">ビルイン物件</option>
+            <option value="クライアント所在地">クライアント所在地</option>
+            <option value="地権者">地権者</option>
+            <option value="未分類">未分類</option>
+          </select>
+        </div>
+
+        <!-- Area (坪) -->
+        <div>
+          <label class="block font-bold text-gray-600 mb-1">面積（坪）</label>
           <div class="relative flex items-center">
-            <input type="number" step="any" id="form-area" placeholder="例: 45.5" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 pr-12">
-            <span class="absolute right-4 text-sm font-bold text-gray-400 pointer-events-none">坪</span>
+            <input type="number" step="any" id="form-area" placeholder="例: 45.5" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-gray-800 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <span class="absolute right-3 font-bold text-gray-400 pointer-events-none">坪</span>
           </div>
         </div>
 
+        <!-- Photos (Max 3) -->
         <div>
-          <label class="block text-xs font-bold text-gray-500 mb-1.5">住所</label>
-          <textarea id="form-address" rows="2" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"></textarea>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block font-bold text-gray-600">物件写真 (最大3枚)</label>
+            <span id="form-photo-count-label" class="text-[10px] font-bold text-gray-400">0 / 3</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2" id="form-photos-preview"></div>
+          <input type="file" id="form-photo-input" accept="image/*" class="hidden" multiple onchange="window.handlePhotoSelect(event)">
+          <div id="photo-loading-spinner" class="hidden text-xs text-blue-600 mt-1 font-bold flex items-center">
+            <i class="fa-solid fa-circle-notch fa-spin mr-1.5"></i>写真を圧縮中...
+          </div>
         </div>
 
+        <!-- Address -->
         <div>
-          <label class="block text-xs font-bold text-gray-500 mb-1.5">メモ</label>
-          <textarea id="form-memo" rows="3" placeholder="営業時間や備考などを入力..." class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"></textarea>
+          <label class="block font-bold text-gray-600 mb-1">住所</label>
+          <input type="text" id="form-address" placeholder="住所" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
-      </div>
-      <div class="p-4 border-t border-gray-100 bg-white pb-[env(safe-area-inset-bottom,16px)]">
-        <button id="save-submit-btn" onclick="window.saveProperty()" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-colors flex justify-center items-center">
-          保存する
-        </button>
-      </div>
-    </div>
-  </div>
 
-  <!-- Trash Modal -->
-  <div id="trash-modal" class="fixed inset-0 bg-black/60 z-[80] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
-    <div class="bg-white w-full max-w-md h-[80vh] rounded-2xl flex flex-col shadow-2xl transform scale-95 transition-transform duration-300" id="trash-content">
-      <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
+        <!-- Memo -->
         <div>
-          <h3 class="font-bold text-gray-800 flex items-center"><i class="fa-solid fa-trash-can mr-2 text-gray-500"></i>ゴミ箱</h3>
-          <p class="text-[11px] text-gray-400 mt-0.5">※完全削除はこの端末のキャッシュから消去します</p>
+          <label class="block font-bold text-gray-600 mb-1">メモ</label>
+          <textarea id="form-memo" rows="3" placeholder="賃料、間口、競合情報など" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
         </div>
-        <button onclick="window.hideTrashModal()" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-xmark text-xl"></i></button>
-      </div>
-      <div class="p-3 flex justify-between items-center border-b border-gray-100 bg-white">
-        <span class="text-xs text-gray-500 pl-2" id="trash-count-label">0件の削除済みアイテム</span>
-        <button onclick="window.emptyTrash()" class="text-xs font-bold bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors border border-red-100">全て完全削除</button>
-      </div>
-      <div class="flex-1 overflow-y-auto p-4 bg-gray-50" id="trash-list">
-        <!-- Trash items injected here -->
-      </div>
+
+        <!-- Save Button -->
+        <div class="pt-2">
+          <button type="submit" id="form-submit-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-xs transition-colors shadow">
+            保存する
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
   <!-- Guide Modal -->
   <div id="guide-modal" class="fixed inset-0 bg-black/60 z-[90] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
-    <div class="bg-white w-full max-w-md max-h-[85vh] rounded-2xl flex flex-col shadow-2xl p-5 overflow-hidden">
-      <div class="flex justify-between items-center pb-3 border-b border-gray-100">
-        <h3 class="font-bold text-gray-800 flex items-center"><i class="fa-solid fa-circle-question mr-2 text-blue-600"></i>データ同期・運用ガイド</h3>
-        <button onclick="window.hideGuideModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+    <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl space-y-3.5 text-xs">
+      <div class="flex items-center justify-between border-b pb-2">
+        <h3 class="font-extrabold text-gray-800 text-sm flex items-center">
+          <i class="fa-solid fa-circle-question text-blue-600 mr-1.5"></i>使い方・端末間同期ガイド
+        </h3>
+        <button onclick="window.closeGuideModal()" class="text-gray-400 hover:text-gray-600">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
       </div>
-      <div class="overflow-y-auto py-3 text-xs text-gray-600 space-y-3 leading-relaxed">
-        <div class="bg-blue-50 p-3 rounded-xl border border-blue-100">
-          <p class="font-bold text-blue-900 mb-1">🔄 PCとiPhoneでのデータ同期手順</p>
-          <ol class="list-decimal pl-4 space-y-1 text-blue-800">
-            <li>作業した端末で「データ管理」→「JSONでバックアップ」を実行</li>
-            <li>保存したファイルをGoogleドライブやAirDrop等で共有</li>
-            <li>もう一方の端末で「データ管理」→「データを取り込む」で選択</li>
-          </ol>
-          <p class="mt-1 text-[11px] text-blue-700">★更新日時が新しい方が自動優先され、削除した物件も正しく反映されます。</p>
-        </div>
-        <div class="bg-amber-50 p-3 rounded-xl border border-amber-100">
-          <p class="font-bold text-amber-900 mb-1">⚠️ iPhoneでの利用時の重要な注意</p>
-          <p class="text-amber-800 text-[11px]">iOS Safariは7日間開かないとキャッシュが自動クリアされる場合があります。Safariの共有ボタンから<strong>「ホーム画面に追加」</strong>してPWAとして起動すると、削除対象外となり安定してご利用いただけます。</p>
+
+      <div class="space-y-2 text-gray-600 leading-relaxed max-h-[60vh] overflow-y-auto pr-1">
+        <p class="font-bold text-gray-800">■ PCとiPhoneで同期する手順</p>
+        <ol class="list-decimal pl-4 space-y-1">
+          <li>作業した端末で「保存・復元」→「JSONでバックアップ」を実行</li>
+          <li>Googleドライブ等の共有フォルダへ保存</li>
+          <li>もう一方の端末で「データを取り込む(JSON)」で読み込み</li>
+        </ol>
+
+        <div class="bg-red-50 border border-red-200 p-2.5 rounded-xl text-red-800 mt-2">
+          <p class="font-bold text-[11px] mb-1"><i class="fa-solid fa-triangle-exclamation mr-1"></i>iPhoneでの注意点 (赤いアイコン)</p>
+          <p class="text-[10px] leading-normal">Googleドライブ上でファイルに赤い進入禁止マークが出ている場合、iPhone未ダウンロード状態です。iPhoneの「ファイル」アプリで一度タップして実体化させてから取り込んでください。</p>
         </div>
       </div>
-      <button onclick="window.hideGuideModal()" class="mt-2 w-full py-2.5 bg-blue-600 text-white font-bold rounded-xl text-xs hover:bg-blue-700 transition-colors">
+
+      <button onclick="window.closeGuideModal()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 rounded-xl text-xs transition-colors">
         閉じる
       </button>
     </div>
   </div>
 
-  <!-- Custom Dialog -->
+  <!-- Custom Dialog (No alert / confirm) -->
   <div id="dialog-modal" class="fixed inset-0 bg-black/60 z-[9999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
-    <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl transform scale-95 transition-transform duration-300 text-center" id="dialog-content">
-      <p id="dialog-message" class="text-gray-800 text-sm font-bold mb-6 whitespace-pre-wrap leading-relaxed"></p>
-      <div class="flex space-x-3 justify-center">
-        <button id="dialog-cancel" class="flex-1 py-3 bg-gray-100 text-gray-600 text-sm font-bold rounded-xl hover:bg-gray-200 transition-colors hidden">キャンセル</button>
-        <button id="dialog-ok" class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl shadow-md transition-colors">OK</button>
+    <div class="bg-white w-full max-w-xs rounded-3xl p-5 shadow-2xl text-center space-y-4">
+      <div id="dialog-icon" class="w-12 h-12 mx-auto rounded-full flex items-center justify-center text-xl bg-blue-100 text-blue-600">
+        <i class="fa-solid fa-circle-info"></i>
+      </div>
+      <div>
+        <h4 id="dialog-title" class="font-extrabold text-gray-800 text-sm mb-1">確認</h4>
+        <p id="dialog-message" class="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed"></p>
+      </div>
+      <div id="dialog-actions" class="flex space-x-2">
+        <!-- Buttons injected dynamically -->
       </div>
     </div>
   </div>
 
   <script>
-    const STORAGE_KEY = 'BukkenMemo_properties';
-    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const STORAGE_KEY = 'bukken_memo_records_v2';
+    const LAST_IMPORT_KEY = 'bukken_memo_last_import_info';
 
-    // UUID Generator (Supports crypto.randomUUID and fallback)
+    // Type Colors
+    const typeColors = {
+      'ロードサイド物件': '#ef4444',
+      'ビルイン物件': '#3b82f6',
+      'クライアント所在地': '#8b5cf6',
+      '地権者': '#10b981',
+      '未分類': '#6b7280'
+    };
+
+    // State Variables
+    let map = null;
+    let baseLayers = {};
+    let currentLayerName = 'google';
+    let targetMarker = null;
+    let markersLayer = null;
+    let properties = [];
+    let storageOk = true;
+    let currentFormPhotos = [];
+    let isSaving = false;
+    let currentLocation = { lat: 35.6895, lng: 139.6917, address: '' };
+
+    // Helpers
     function generateUUID() {
-      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) {
         return crypto.randomUUID();
       }
       return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
       });
     }
 
-    // Date Utilities (ISO8601 UTC standard storage & local display)
-    function toISO(d) {
-      if (!d) return null;
-      if (d instanceof Date) return isNaN(d.getTime()) ? null : d.toISOString();
-      if (typeof d === 'number') {
-        const date = new Date(d);
-        return isNaN(date.getTime()) ? null : date.toISOString();
+    function toISO(val) {
+      if (!val) return null;
+      if (typeof val === 'number') {
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? null : d.toISOString();
       }
-      if (typeof d === 'string') {
-        // Handle "YYYY/MM/DD HH:mm" or "YYYY-MM-DD..."
-        const normalized = d.replace(/\//g, '-');
-        const parsed = Date.parse(normalized.includes('T') ? normalized : normalized.replace(' ', 'T'));
+      if (typeof val === 'string') {
+        const parsed = Date.parse(val);
         if (!isNaN(parsed)) return new Date(parsed).toISOString();
-        const fallback = Date.parse(d);
-        if (!isNaN(fallback)) return new Date(fallback).toISOString();
+        const m = val.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+        if (m) {
+          const d = new Date(m[1], m[2]-1, m[3], m[4]||0, m[5]||0, m[6]||0);
+          return isNaN(d.getTime()) ? null : d.toISOString();
+        }
       }
       return null;
     }
 
-    function formatDisplayDate(isoString, includeTime = false) {
-      if (!isoString) return '日付不明';
-      const d = new Date(isoString);
+    function formatDisplayDate(iso, includeSeconds = false) {
+      if (!iso) return '日付不明';
+      const d = new Date(iso);
       if (isNaN(d.getTime())) return '日付不明';
       const y = d.getFullYear();
       const m = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
-      if (!includeTime) return `${y}/${m}/${day}`;
       const hh = String(d.getHours()).padStart(2, '0');
       const mm = String(d.getMinutes()).padStart(2, '0');
+      if (includeSeconds) {
+        const ss = String(d.getSeconds()).padStart(2, '0');
+        return `${y}/${m}/${day} ${hh}:${mm}:${ss}`;
+      }
       return `${y}/${m}/${day} ${hh}:${mm}`;
     }
 
-    function timeOf(record) {
-      const target = record.updatedAt || record.createdAt || record.deletedAt;
-      if (!target) return 0;
-      const t = Date.parse(target);
-      return isNaN(t) ? 0 : t;
+    function timeOf(r) {
+      const u = r.updatedAt ? Date.parse(r.updatedAt) : 0;
+      const c = r.createdAt ? Date.parse(r.createdAt) : 0;
+      return Math.max(u || 0, c || 0);
     }
 
-    let dialogConfirmCallback = null;
-    function showDialog(message, isConfirm, callback = null) {
-      const modal = document.getElementById('dialog-modal');
-      const content = document.getElementById('dialog-content');
-      document.getElementById('dialog-message').textContent = message;
-      
-      const cancelBtn = document.getElementById('dialog-cancel');
-      if (isConfirm) {
-        cancelBtn.classList.remove('hidden');
-      } else {
-        cancelBtn.classList.add('hidden');
-      }
-      dialogConfirmCallback = callback;
-      
-      modal.classList.remove('hidden');
-      setTimeout(() => {
-        modal.classList.remove('opacity-0');
-        content.classList.remove('scale-95');
-        content.classList.add('scale-100');
-      }, 10);
+    function esc(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
     }
-    function closeDialog() {
-      const modal = document.getElementById('dialog-modal');
-      const content = document.getElementById('dialog-content');
-      modal.classList.add('opacity-0');
-      content.classList.remove('scale-100');
-      content.classList.add('scale-95');
-      setTimeout(() => { modal.classList.add('hidden'); }, 300);
+
+    function customAlert(message, title = 'お知らせ') {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('dialog-modal');
+        document.getElementById('dialog-title').textContent = title;
+        document.getElementById('dialog-message').textContent = message;
+        document.getElementById('dialog-icon').className = 'w-12 h-12 mx-auto rounded-full flex items-center justify-center text-xl bg-blue-100 text-blue-600';
+        document.getElementById('dialog-icon').innerHTML = '<i class="fa-solid fa-circle-info"></i>';
+
+        const actions = document.getElementById('dialog-actions');
+        actions.innerHTML = `
+          <button id="dialog-ok-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs transition-colors">
+            OK
+          </button>
+        `;
+        document.getElementById('dialog-ok-btn').onclick = () => {
+          modal.classList.add('opacity-0');
+          setTimeout(() => { modal.classList.add('hidden'); resolve(); }, 200);
+        };
+        modal.classList.remove('hidden');
+        setTimeout(() => modal.classList.remove('opacity-0'), 10);
+      });
     }
-    document.getElementById('dialog-cancel').addEventListener('click', closeDialog);
-    document.getElementById('dialog-ok').addEventListener('click', () => {
-      closeDialog();
-      if (dialogConfirmCallback) dialogConfirmCallback();
-    });
-    function customAlert(message) { showDialog(message, false); }
-    function customConfirm(message, onConfirmCallback) { showDialog(message, true, onConfirmCallback); }
+
+    function customConfirm(message, title = '確認') {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('dialog-modal');
+        document.getElementById('dialog-title').textContent = title;
+        document.getElementById('dialog-message').textContent = message;
+        document.getElementById('dialog-icon').className = 'w-12 h-12 mx-auto rounded-full flex items-center justify-center text-xl bg-amber-100 text-amber-600';
+        document.getElementById('dialog-icon').innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+
+        const actions = document.getElementById('dialog-actions');
+        actions.innerHTML = `
+          <button id="dialog-cancel-btn" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 rounded-xl text-xs transition-colors">
+            キャンセル
+          </button>
+          <button id="dialog-proceed-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs transition-colors">
+            実行する
+          </button>
+        `;
+        document.getElementById('dialog-cancel-btn').onclick = () => {
+          modal.classList.add('opacity-0');
+          setTimeout(() => { modal.classList.add('hidden'); resolve(false); }, 200);
+        };
+        document.getElementById('dialog-proceed-btn').onclick = () => {
+          modal.classList.add('opacity-0');
+          setTimeout(() => { modal.classList.add('hidden'); resolve(true); }, 200);
+        };
+        modal.classList.remove('hidden');
+        setTimeout(() => modal.classList.remove('opacity-0'), 10);
+      });
+    }
 
     function showStorageWarning(msg) {
       const bar = document.getElementById('storage-warning-bar');
-      const msgEl = document.getElementById('storage-warning-msg');
-      const dot = document.getElementById('storage-status-dot');
-      if (bar && msgEl) {
-        msgEl.textContent = msg;
+      const text = document.getElementById('storage-warning-text');
+      if (bar && text) {
+        text.textContent = msg;
         bar.classList.remove('hidden');
-      }
-      if (dot) {
-        dot.className = 'w-2 h-2 rounded-full bg-red-500';
-      }
-    }
-
-    let properties = [];
-    let storageOk = true;
-
-    function normalizeRecord(raw, nowIso = new Date().toISOString()) {
-      const id = String(raw.id || generateUUID());
-      const createdAt = toISO(raw.createdAt) || (raw.timestamp ? toISO(raw.timestamp) : null);
-      const updatedAt = toISO(raw.updatedAt) || createdAt || nowIso;
-      const deletedAt = toISO(raw.deletedAt) || (raw.isDeleted ? (updatedAt || nowIso) : null);
-
-      return {
-        id,
-        name: typeof raw.name === 'string' ? raw.name.trim() : '',
-        type: raw.type || '未分類',
-        area: raw.area !== undefined && raw.area !== null ? String(raw.area).trim() : '',
-        address: typeof raw.address === 'string' ? raw.address.trim() : '',
-        memo: typeof raw.memo === 'string' ? raw.memo.trim() : '',
-        lat: typeof raw.lat === 'number' ? raw.lat : parseFloat(raw.lat || 0),
-        lng: typeof raw.lng === 'number' ? raw.lng : parseFloat(raw.lng || 0),
-        flagged: !!raw.flagged,
-        createdAt: createdAt, // 日付不明の場合は null
-        updatedAt: updatedAt,
-        deletedAt: deletedAt,
-        isDeleted: !!deletedAt
-      };
-    }
-
-    function loadPropertiesFromStorage() {
-      try {
-        const rawJson = localStorage.getItem(STORAGE_KEY);
-        if (!rawJson) return [];
-        const parsed = JSON.parse(rawJson);
-        const list = Array.isArray(parsed) ? parsed : (parsed.records && Array.isArray(parsed.records) ? parsed.records : []);
-        const nowIso = new Date().toISOString();
-        return list.map(item => normalizeRecord(item, nowIso));
-      } catch (e) {
-        console.error('Failed to parse localStorage data', e);
-        showStorageWarning('保存データの読み込みに問題が発生しました。');
-        return [];
       }
     }
 
@@ -542,24 +642,48 @@
           throw new Error('Verification failed');
         }
         storageOk = true;
-        const dot = document.getElementById('storage-status-dot');
-        if (dot) dot.className = 'w-2 h-2 rounded-full bg-green-500';
         return true;
-      } catch (e) {
-        console.error('Save to localStorage failed', e);
+      } catch (err) {
+        console.error('Storage error', err);
         storageOk = false;
-        showStorageWarning('端末への自動保存に失敗しました。プライベートブラウズまたは容量制限をご確認ください。');
+        showStorageWarning('端末への保存に失敗しました。容量不足またはプライベート閲覧の可能性があります。');
         return false;
       }
     }
 
-    // Last-Write-Wins Multi-device Synchronizer
-    function mergeRecords(localList, incomingList) {
-      const nowIso = new Date().toISOString();
+    function normalizeRecord(raw, nowIso = new Date().toISOString()) {
+      const id = String(raw.id || generateUUID());
+      const createdAt = toISO(raw.createdAt) || (raw.timestamp ? toISO(raw.timestamp) : null);
+      const updatedAt = toISO(raw.updatedAt) || createdAt || nowIso;
+      const deletedAt = toISO(raw.deletedAt) || (raw.isDeleted ? (updatedAt || nowIso) : null);
+
+      let rawPhotos = Array.isArray(raw.photos) ? raw.photos : [];
+      if (raw.photo && !rawPhotos.length) rawPhotos.push(raw.photo);
+      const photos = rawPhotos.filter(p => typeof p === 'string' && p.startsWith('data:image/')).slice(0, 3);
+
+      return {
+        id,
+        name: typeof raw.name === 'string' ? raw.name.trim() : '',
+        type: raw.type || '未分類',
+        area: raw.area !== undefined && raw.area !== null ? String(raw.area).trim() : '',
+        address: typeof raw.address === 'string' ? raw.address.trim() : '',
+        memo: typeof raw.memo === 'string' ? raw.memo.trim() : '',
+        lat: typeof raw.lat === 'number' ? raw.lat : parseFloat(raw.lat || 0),
+        lng: typeof raw.lng === 'number' ? raw.lng : parseFloat(raw.lng || 0),
+        flagged: !!raw.flagged,
+        photos: photos,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        deletedAt: deletedAt,
+        isDeleted: !!deletedAt
+      };
+    }
+
+    function mergeRecords(localList, incoming, nowIso) {
       const stats = { added: 0, updated: 0, deleted: 0, restored: 0, unchanged: 0, invalid: 0, total: 0 };
       const byId = new Map(localList.map(r => [r.id, r]));
 
-      for (const raw of incomingList) {
+      for (const raw of incoming) {
         stats.total++;
         if (!raw || typeof raw !== 'object') {
           stats.invalid++;
@@ -571,345 +695,275 @@
         if (!cur) {
           localList.push(inc);
           byId.set(inc.id, inc);
-          if (inc.deletedAt) {
-            stats.deleted++;
-          } else {
-            stats.added++;
-          }
+          if (inc.deletedAt) stats.deleted++;
+          else stats.added++;
           continue;
         }
 
-        // 比較：更新日時が新しいレコードを採用 (Last-Write-Wins)
         if (timeOf(inc) > timeOf(cur)) {
           const wasDeleted = !!cur.deletedAt;
           Object.assign(cur, inc);
-          if (inc.deletedAt) {
-            stats.deleted++;
-          } else if (wasDeleted) {
-            stats.restored++;
-          } else {
-            stats.updated++;
-          }
+          if (inc.deletedAt) stats.deleted++;
+          else if (wasDeleted) stats.restored++;
+          else stats.updated++;
         } else {
           stats.unchanged++;
         }
       }
-
       return { stats, records: localList };
     }
 
-    let map, targetMarker, savedMarkersLayer; 
-    let currentLocation = { lat: 35.681236, lng: 139.767125, address: '' };
-    let currentMainView = 'map';
-    let geocodeSeq = 0;
-    let geoTimer = null;
-    let mapLayers = {};
-    let currentLayer = 'google';
-    let isSavingLock = false;
-
-    let backupFileHandles = { json: null, csv: null };
-
-    const typeColors = {
-      'ロードサイド物件': '#3b82f6', // blue
-      'ビルイン物件': '#10b981', // green
-      'クライアント所在地': '#8b5cf6', // purple
-      '地権者': '#f59e0b', // amber
-      '未分類': '#6b7280' // gray
-    };
-
-    function initApp() {
-      // Diagnostic check for file: protocol
-      if (window.location.protocol === 'file:') {
-        showStorageWarning('file:// で開いています。iOSでは保存が消える可能性があるためホーム画面追加またはWeb公開を推奨します。');
+    function loadInitialData() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          const rawList = Array.isArray(parsed) ? parsed : (parsed.records || []);
+          properties = rawList.map(r => normalizeRecord(r));
+        } else {
+          // Check old storage key
+          const old = localStorage.getItem('bukken_memo_locations');
+          if (old) {
+            const parsedOld = JSON.parse(old);
+            if (Array.isArray(parsedOld)) {
+              properties = parsedOld.map(r => normalizeRecord(r));
+              persist();
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Data load error', e);
+        properties = [];
       }
-
-      // Request persistent storage if available
-      if (navigator.storage && navigator.storage.persist) {
-        navigator.storage.persist().catch(() => {});
-      }
-
-      properties = loadPropertiesFromStorage();
-      persist(); // Normalize & verify
-
-      initMap();
-      renderMapMarkers();
-      renderList();
-      updateLayerChecks();
-      updateTrashBadge();
     }
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initApp);
-    } else {
-      initApp();
-    }
-    setTimeout(() => { if (!map) initApp(); }, 1000);
 
     function initMap() {
-      if (map) return;
-      map = L.map('map', { zoomControl: false, attributionControl: false }).setView([currentLocation.lat, currentLocation.lng], 15);
-      
-      mapLayers = {
-        google: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20 }),
-        gsi: L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
-          maxZoom: 18,
-          attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>"
-        }),
-        googleSat: L.tileLayer('https://mt1.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', { maxZoom: 20 })
-      };
-      
-      mapLayers[currentLayer].addTo(map);
-      savedMarkersLayer = L.layerGroup().addTo(map);
+      // Default to Shinjuku or first property
+      let initLat = 35.6895;
+      let initLng = 139.6917;
+      const activeProps = properties.filter(p => !p.isDeleted);
+      if (activeProps.length > 0) {
+        initLat = activeProps[activeProps.length - 1].lat;
+        initLng = activeProps[activeProps.length - 1].lng;
+      }
 
-      const targetIcon = L.divIcon({
-        html: `<div class="target-marker"></div>`,
-        className: 'custom-div-icon',
-        iconSize: [24, 24],
-        iconAnchor: [12, 12]
+      map = L.map('map', {
+        zoomControl: false
+      }).setView([initLat, initLng], 14);
+
+      // Layers (Google Maps default)
+      baseLayers.google = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        attribution: '&copy; Google'
+      });
+      baseLayers.gsi = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '&copy; 国土地理院'
+      });
+      baseLayers.photo = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        attribution: '&copy; Google Satellite'
       });
 
-      targetMarker = L.marker([currentLocation.lat, currentLocation.lng], {
+      baseLayers.google.addTo(map);
+
+      // Target selection marker (Draggable pin)
+      const targetIcon = L.divIcon({
+        className: 'custom-target-icon',
+        html: `
+          <div style="transform: translate(-17px, -44px);">
+            <div class="pin-marker-container">
+              <div class="pin-head" style="background-color: #2563eb;"></div>
+              <div class="pin-needle"></div>
+            </div>
+          </div>
+        `,
+        iconSize: [34, 44],
+        iconAnchor: [17, 44]
+      });
+
+      targetMarker = L.marker([initLat, initLng], {
         icon: targetIcon,
-        draggable: true,
-        zIndexOffset: 1000 
+        draggable: true
       }).addTo(map);
 
-      targetMarker.on('dragend', function () {
+      targetMarker.on('dragend', function() {
         const pos = targetMarker.getLatLng();
-        updateCurrentLocation(pos.lat, pos.lng);
+        reverseGeocode(pos.lat, pos.lng);
       });
 
-      map.on('click', function (e) {
+      map.on('click', function(e) {
         targetMarker.setLatLng(e.latlng);
-        updateCurrentLocation(e.latlng.lat, e.latlng.lng);
+        reverseGeocode(e.latlng.lat, e.latlng.lng);
       });
 
-      if (navigator.geolocation && window.location.protocol === 'https:') {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
-            map.setView([lat, lng], 17);
-            targetMarker.setLatLng([lat, lng]);
-            updateCurrentLocation(lat, lng);
-          },
-          (err) => { console.warn("Auto-locate failed", err); },
-          { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-        );
-      }
+      markersLayer = L.layerGroup().addTo(map);
+
+      reverseGeocode(initLat, initLng);
+      renderMapMarkers();
     }
+
+    window.setMapLayer = function(name) {
+      if (!baseLayers[name] || name === currentLayerName) return;
+      map.removeLayer(baseLayers[currentLayerName]);
+      baseLayers[name].addTo(map);
+      currentLayerName = name;
+
+      document.getElementById('layer-check-google').classList.toggle('hidden', name !== 'google');
+      document.getElementById('layer-check-gsi').classList.toggle('hidden', name !== 'gsi');
+      document.getElementById('layer-check-photo').classList.toggle('hidden', name !== 'photo');
+      window.toggleLayerMenu();
+    };
 
     window.toggleLayerMenu = function() {
       const menu = document.getElementById('layer-menu');
       menu.classList.toggle('hidden');
     };
 
-    window.switchLayer = function(layerId) {
-      if (mapLayers[currentLayer]) {
-        map.removeLayer(mapLayers[currentLayer]);
-      }
-      currentLayer = layerId;
-      mapLayers[currentLayer].addTo(map);
-      updateLayerChecks();
-      document.getElementById('layer-menu').classList.add('hidden');
-    };
-
-    function updateLayerChecks() {
-      document.querySelectorAll('[class*="layer-check-"]').forEach(el => el.classList.add('hidden'));
-      const activeCheck = document.querySelector(`.layer-check-${currentLayer}`);
-      if (activeCheck) activeCheck.classList.remove('hidden');
-    }
-
-    function updateCurrentLocation(lat, lng) {
+    function reverseGeocode(lat, lng) {
       currentLocation.lat = lat;
       currentLocation.lng = lng;
-      
       const addrEl = document.getElementById('current-address');
-      if (addrEl) addrEl.textContent = '現在地を取得中...';
-      
-      clearTimeout(geoTimer);
-      geoTimer = setTimeout(() => reverseGeocode(lat, lng), 600);
+      if (addrEl) addrEl.textContent = '住所を取得中...';
+
+      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
+        headers: { 'Accept-Language': 'ja' }
+      })
+      .then(res => res.json())
+      .then(data => {
+        const addr = data.display_name ? data.display_name.split(',').reverse().slice(1).join(' ').trim() : `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        currentLocation.address = addr;
+        if (addrEl) addrEl.textContent = addr;
+      })
+      .catch(() => {
+        const fallback = `緯度:${lat.toFixed(4)}, 経度:${lng.toFixed(4)}`;
+        currentLocation.address = fallback;
+        if (addrEl) addrEl.textContent = fallback;
+      });
     }
 
-    async function reverseGeocode(lat, lng) {
-      const mySeq = ++geocodeSeq;
-      try {
-        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=ja`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('Network error');
-        const data = await res.json();
-        if (mySeq !== geocodeSeq) return; 
+    window.searchAddress = function() {
+      const q = document.getElementById('map-search-input').value.trim();
+      if (!q) return;
 
-        let addr = '';
-        if (data.address) {
-          const a = data.address;
-          addr += (a.province || a.prefecture || '') + (a.city || a.town || a.village || a.county || '');
-          addr += (a.suburb || a.quarter || '') + (a.neighbourhood || '');
-          if (a.road) addr += ' ' + a.road;
-          if (a.house_number) addr += ' ' + a.house_number;
-        }
-        currentLocation.address = addr.trim() || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-      } catch (error) {
-        if (mySeq !== geocodeSeq) return;
-        currentLocation.address = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-      }
-      
-      const addrEl = document.getElementById('current-address');
-      if (addrEl) addrEl.textContent = currentLocation.address;
-    }
-
-    window.locateMe = function() {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-            map.flyTo([lat, lng], 17, {duration: 0.5});
-            targetMarker.setLatLng([lat, lng]);
-            updateCurrentLocation(lat, lng);
-          },
-          () => {},
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
-      }
-    };
-
-    window.searchAddress = async function() {
-      const input = document.getElementById('map-search-input');
-      const query = input.value.trim();
-      if (!query) return;
-
-      try {
-        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&limit=1&accept-language=ja`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('Search failed');
-        const data = await res.json();
-
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`, {
+        headers: { 'Accept-Language': 'ja' }
+      })
+      .then(res => res.json())
+      .then(data => {
         if (data && data.length > 0) {
           const lat = parseFloat(data[0].lat);
           const lng = parseFloat(data[0].lon);
-          map.flyTo([lat, lng], 16, {duration: 0.5});
+          map.setView([lat, lng], 16);
           targetMarker.setLatLng([lat, lng]);
-          updateCurrentLocation(lat, lng);
-          input.blur(); 
+          reverseGeocode(lat, lng);
         } else {
-          customAlert('見つかりませんでした。\n条件を変更してお試しください。');
+          customAlert('指定された場所が見つかりませんでした。');
         }
-      } catch (error) {
-        customAlert('検索中にエラーが発生しました。');
+      })
+      .catch(() => customAlert('検索に失敗しました。通信環境をご確認ください。'));
+    };
+
+    window.moveToCurrentLocation = function() {
+      if (!navigator.geolocation) {
+        return customAlert('お使いのブラウザは現在地取得に対応していません。');
       }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          map.setView([lat, lng], 16);
+          targetMarker.setLatLng([lat, lng]);
+          reverseGeocode(lat, lng);
+        },
+        () => customAlert('現在地を取得できませんでした。GPS権限をご確認ください。'),
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
     };
 
     function renderMapMarkers() {
-      if (!savedMarkersLayer) return;
-      savedMarkersLayer.clearLayers();
+      if (!markersLayer) return;
+      markersLayer.clearLayers();
 
-      const activeProps = properties.filter(p => !p.deletedAt && !p.isDeleted);
-
+      const activeProps = properties.filter(p => !p.isDeleted);
       activeProps.forEach(p => {
         const color = typeColors[p.type] || typeColors['未分類'];
-        
-        // 虫ピン(📍)デザイン
-        const htmlStr = `
-          <div class="relative flex flex-col items-center transform transition-transform hover:scale-110" style="margin-top: -6px;">
-            <div class="w-5 h-5 rounded-full shadow-[inset_-2px_-2px_6px_rgba(0,0,0,0.3),0_2px_4px_rgba(0,0,0,0.4)] border border-white z-10" style="background-color: ${color};"></div>
-            <div class="w-[2px] h-6 bg-gradient-to-b from-gray-400 to-gray-600 shadow-[2px_2px_2px_rgba(0,0,0,0.2)] z-0 -mt-1"></div>
-            ${p.flagged ? '<div class="absolute -top-2 -right-3 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-md border border-gray-100 text-red-500 text-[10px] z-20"><i class="fa-solid fa-flag"></i></div>' : ''}
-          </div>
-        `;
-        
-        const icon = L.divIcon({
-          html: htmlStr,
-          className: 'custom-div-icon',
-          iconSize: [24, 32],
-          iconAnchor: [12, 32],
-          popupAnchor: [0, -32]
-        });
+        const flagHtml = p.flagged ? `<div class="pin-flag-badge"><i class="fa-solid fa-flag text-[9px]"></i></div>` : '';
 
-        const m = L.marker([p.lat, p.lng], { icon: icon });
-        const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
-        
-        const popupContent = `
-          <div class="p-4 bg-white">
-            <div class="mb-4">
-              <h4 class="font-bold text-gray-800 text-base leading-snug mb-1 pr-4">${esc(p.name)}</h4>
-              <p class="text-[11px] text-gray-500 mb-2">${esc(p.type)}</p>
-              <div class="text-[11px] text-gray-600 flex items-start bg-gray-50 p-2 rounded-lg border border-gray-100">
-                 <i class="fa-solid fa-location-dot mt-0.5 mr-1.5 text-gray-400"></i>
-                 <span class="line-clamp-2">${esc(p.address)}</span>
+        const icon = L.divIcon({
+          className: 'custom-property-pin',
+          html: `
+            <div style="transform: translate(-17px, -44px);">
+              <div class="pin-marker-container">
+                <div class="pin-head" style="background-color: ${color};"></div>
+                <div class="pin-needle"></div>
+                ${flagHtml}
               </div>
             </div>
-            <div class="flex space-x-2">
-              <button onclick="window.moveToTrash('${p.id}')" class="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex justify-center items-center hover:bg-red-100 transition-colors shrink-0" title="ゴミ箱へ移動">
-                <i class="fa-solid fa-trash-can"></i>
-              </button>
-              <button onclick="window.openFormModal('${p.id}')" class="flex-1 py-2 bg-gray-100 text-gray-700 font-bold rounded-xl text-sm hover:bg-gray-200 transition-colors">
-                編集
-              </button>
-              <a href="${routeUrl}" target="_blank" class="flex-1 py-2 bg-blue-600 font-bold rounded-xl text-sm hover:bg-blue-700 transition-colors flex justify-center items-center" style="text-decoration: none; color: #ffffff !important;">
-                <i class="fa-solid fa-route mr-1" style="color: #ffffff !important;"></i>ルート
+          `,
+          iconSize: [34, 44],
+          iconAnchor: [17, 44]
+        });
+
+        const marker = L.marker([p.lat, p.lng], { icon }).addTo(markersLayer);
+
+        const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
+        const popupHtml = `
+          <div class="p-3.5 space-y-2 min-w-[210px] max-w-[260px] text-xs font-sans">
+            <div class="flex items-start justify-between">
+              <div>
+                <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold text-white mb-1" style="background-color: ${color}">${esc(p.type)}</span>
+                <h4 class="font-extrabold text-sm text-gray-800 leading-tight">${esc(p.name)}</h4>
+              </div>
+            </div>
+            ${p.area ? `<div class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md inline-block"><i class="fa-solid fa-ruler-combined mr-1"></i>${esc(p.area)} 坪</div>` : ''}
+            <p class="text-gray-500 text-[11px] leading-snug truncate"><i class="fa-solid fa-location-dot mr-1 text-gray-400"></i>${esc(p.address)}</p>
+            <div class="flex items-center space-x-1.5 pt-1.5 border-t border-gray-100">
+              <a href="${routeUrl}" target="_blank" rel="noopener noreferrer" style="color: #ffffff !important;" class="flex-1 bg-blue-600 hover:bg-blue-700 text-center font-bold py-1.5 px-2 rounded-xl text-[11px] shadow flex items-center justify-center space-x-1">
+                <i class="fa-solid fa-diamond-turn-right" style="color: #ffffff !important;"></i>
+                <span style="color: #ffffff !important;">ルート</span>
               </a>
+              <button onclick="window.openFormModal('${p.id}')" class="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-[11px]">編集</button>
+              <button onclick="window.moveToTrash('${p.id}')" class="px-2 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-[11px]"><i class="fa-solid fa-trash"></i></button>
             </div>
           </div>
         `;
-        
-        m.bindPopup(popupContent);
-        savedMarkersLayer.addLayer(m);
+
+        marker.bindPopup(popupHtml, { className: 'custom-popup', maxWidth: 280 });
       });
     }
 
-    window.switchMainView = function(view) {
-      currentMainView = view;
-      
-      const navMap = document.getElementById('nav-map');
-      const navList = document.getElementById('nav-list');
-      navMap.className = view === 'map' ? 'flex-1 flex flex-col items-center justify-center text-blue-600 transition-colors' : 'flex-1 flex flex-col items-center justify-center text-gray-400 hover:text-blue-500 transition-colors';
-      navList.className = view === 'list' ? 'flex-1 flex flex-col items-center justify-center text-blue-600 transition-colors' : 'flex-1 flex flex-col items-center justify-center text-gray-400 hover:text-blue-500 transition-colors';
-      
-      const viewMap = document.getElementById('view-map');
-      const viewList = document.getElementById('view-list');
-
-      if (view === 'map') {
-        viewMap.classList.remove('opacity-0', 'pointer-events-none', 'z-0');
-        viewMap.classList.add('z-10');
-        viewList.classList.add('opacity-0', 'pointer-events-none', 'z-0');
-        viewList.classList.remove('z-10');
-        if (map) setTimeout(() => map.invalidateSize(), 300);
-      } else {
-        viewList.classList.remove('opacity-0', 'pointer-events-none', 'z-0');
-        viewList.classList.add('z-10');
-        viewMap.classList.add('opacity-0', 'pointer-events-none', 'z-0');
-        viewMap.classList.remove('z-10');
-        renderList();
-      }
-    };
-
     function renderList() {
-      const listEl = document.getElementById('property-list');
-      const activeProps = properties.filter(p => !p.deletedAt && !p.isDeleted);
+      const container = document.getElementById('property-list');
+      const badge = document.getElementById('list-count-badge');
+      if (!container) return;
 
-      document.getElementById('list-count').textContent = `${activeProps.length}件`;
-      listEl.innerHTML = '';
+      const activeProps = properties.filter(p => !p.isDeleted);
+      activeProps.sort((a, b) => timeOf(b) - timeOf(a));
+      badge.textContent = `${activeProps.length}件`;
 
       if (activeProps.length === 0) {
-        listEl.innerHTML = '<div class="text-center py-20 text-gray-400 text-sm flex flex-col items-center"><i class="fa-solid fa-box-open text-4xl mb-4 opacity-30"></i>登録された物件はありません</div>';
+        container.innerHTML = `
+          <div class="p-8 text-center text-gray-400 space-y-2">
+            <i class="fa-solid fa-map-location-dot text-4xl text-gray-300"></i>
+            <p class="text-xs font-bold">登録された物件がありません</p>
+            <p class="text-[11px]">マップの「登録」ボタンから追加してください。</p>
+          </div>
+        `;
         return;
       }
 
-      // 安定ソート: Date.parseベース
-      const sorted = [...activeProps].sort((a, b) => timeOf(b) - timeOf(a));
-
-      sorted.forEach(p => {
-        listEl.appendChild(createCardHTML(p));
+      container.innerHTML = '';
+      activeProps.forEach(p => {
+        container.appendChild(createCardHTML(p));
       });
-      initSwipeLogic();
     }
 
     function createCardHTML(p) {
       const color = typeColors[p.type] || typeColors['未分類'];
       const card = document.createElement('div');
-      card.className = 'relative overflow-hidden bg-red-500 border-b border-gray-100 last:border-b-0 group';
-      
+      card.className = 'relative overflow-hidden bg-red-500 border-b border-gray-100 last:border-b-0';
+
       const createdDisplay = formatDisplayDate(p.createdAt, false);
       const updatedDisplay = formatDisplayDate(p.updatedAt, false);
 
@@ -918,61 +972,102 @@
         dateHtml += `<span class="text-blue-500 mr-3"><i class="fa-solid fa-clock-rotate-left mr-1"></i>更新: ${updatedDisplay}</span>`;
       }
       if (p.area) {
-        dateHtml += `<span class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-bold"><i class="fa-solid fa-ruler-combined mr-1"></i>${esc(p.area)}坪</span>`;
+        dateHtml += `<span class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-bold mr-2"><i class="fa-solid fa-ruler-combined mr-1"></i>${esc(p.area)}坪</span>`;
+      }
+
+      const hasPhotos = Array.isArray(p.photos) && p.photos.length > 0;
+      let thumbnailHtml = '';
+      if (hasPhotos) {
+        thumbnailHtml = `
+          <div class="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 mr-3 shrink-0 border border-gray-200">
+            <img src="${p.photos[0]}" class="w-full h-full object-cover">
+            ${p.photos.length > 1 ? `<span class="absolute bottom-0.5 right-0.5 bg-black/60 text-white text-[9px] font-bold px-1 rounded-sm"><i class="fa-solid fa-camera mr-0.5"></i>${p.photos.length}</span>` : ''}
+          </div>
+        `;
+      } else {
+        thumbnailHtml = `
+          <div class="w-10 h-10 rounded-full flex flex-shrink-0 items-center justify-center text-white mr-3 mt-1 shadow-sm" style="background-color: ${color}">
+             <i class="fa-solid fa-location-dot text-base"></i>
+          </div>
+        `;
       }
 
       card.innerHTML = `
         <div class="absolute inset-y-0 right-0 w-24 flex items-center justify-center text-white z-0 pointer-events-auto">
-          <button onclick="window.moveToTrash('${p.id}')" class="w-full h-full flex flex-col items-center justify-center bg-red-500 hover:bg-red-600 transition-colors cursor-pointer">
-            <i class="fa-solid fa-trash mb-1 text-xl"></i><span class="text-xs font-bold">削除</span>
+          <button onclick="window.moveToTrash('${p.id}')" class="w-full h-full flex flex-col items-center justify-center bg-red-500 hover:bg-red-600 transition-colors">
+            <i class="fa-solid fa-trash mb-1 text-lg"></i><span class="text-xs font-bold">削除</span>
           </button>
         </div>
-        <div class="bg-white p-4 relative z-10 swipe-content w-full h-full transform transition-transform duration-200 flex items-start pointer-events-auto cursor-pointer active:bg-gray-50 select-none" data-id="${p.id}" onclick="window.handleCardClick(event, '${p.id}')">
-          <div class="w-10 h-10 rounded-full flex flex-shrink-0 items-center justify-center text-white mr-4 mt-1 shadow-sm border border-white" style="background-color: ${color}">
-             <i class="fa-solid fa-location-dot text-lg"></i>
-          </div>
+        <div class="bg-white p-3.5 relative z-10 swipe-content w-full h-full transform transition-transform duration-200 flex items-start cursor-pointer active:bg-gray-50" data-id="${p.id}" onclick="window.handleCardClick(event, '${p.id}')">
+          ${thumbnailHtml}
           <div class="flex-1 min-w-0">
             <div class="flex justify-between items-start mb-1">
-              <h3 class="font-bold text-gray-800 text-base leading-tight truncate pr-2">${esc(p.name)}</h3>
-              <button onclick="event.stopPropagation(); window.toggleFlag('${p.id}')" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 border border-gray-200 transition-colors ${p.flagged ? 'bg-red-50 border-red-200' : 'bg-gray-50 hover:bg-gray-100'}">
-                 <i class="fa-solid fa-flag text-sm ${p.flagged ? 'text-red-500' : 'text-gray-300'}"></i>
+              <h3 class="font-bold text-gray-800 text-sm leading-tight truncate pr-2">${esc(p.name)}</h3>
+              <button onclick="event.stopPropagation(); window.toggleFlag('${p.id}')" class="w-7 h-7 rounded-full flex items-center justify-center shrink-0 border border-gray-200 transition-colors ${p.flagged ? 'bg-red-50 border-red-200' : 'bg-gray-50'}">
+                 <i class="fa-solid fa-flag text-xs ${p.flagged ? 'text-red-500' : 'text-gray-300'}"></i>
               </button>
             </div>
             
-            <div class="text-[11px] text-gray-500 mb-2 flex flex-wrap">
+            <div class="text-[11px] text-gray-400 mb-1.5 flex flex-wrap items-center">
               ${dateHtml}
             </div>
 
-            <div class="text-[11px] text-gray-600 mb-3 truncate flex items-center bg-gray-50 p-1.5 rounded-lg border border-gray-100">
-              <i class="fa-solid fa-location-dot text-gray-400 mr-1.5 ml-1"></i>${esc(p.address)}
+            <div class="text-[11px] text-gray-600 mb-2.5 truncate flex items-center bg-gray-50 p-1.5 rounded-lg border border-gray-100">
+              <i class="fa-solid fa-location-dot text-gray-400 mr-1.5 ml-0.5"></i>${esc(p.address)}
             </div>
             
-            <div class="flex justify-end space-x-2">
-              <button onclick="event.stopPropagation(); window.moveToProperty(${p.lat}, ${p.lng})" class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-bold text-xs hover:bg-gray-200 transition-colors flex items-center">
-                <i class="fa-solid fa-map mr-1.5"></i>地図
+            <div class="flex justify-end space-x-1.5">
+              <button onclick="event.stopPropagation(); window.moveToProperty(${p.lat}, ${p.lng})" class="px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 font-bold text-xs hover:bg-gray-200 flex items-center">
+                <i class="fa-solid fa-map mr-1"></i>地図
               </button>
-              <button onclick="event.stopPropagation(); window.openFormModal('${p.id}')" class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-bold text-xs hover:bg-gray-200 transition-colors flex items-center">
-                <i class="fa-solid fa-pen mr-1.5"></i>編集
+              <button onclick="event.stopPropagation(); window.openFormModal('${p.id}')" class="px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 font-bold text-xs hover:bg-gray-200 flex items-center">
+                <i class="fa-solid fa-pen mr-1"></i>編集
               </button>
             </div>
           </div>
         </div>
       `;
+
+      // Swipe Gesture Handling
+      const content = card.querySelector('.swipe-content');
+      let startX = 0, currentX = 0, isSwiping = false, moved = false;
+
+      content.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+        moved = false;
+        isSwiping = true;
+      }, { passive: true });
+
+      content.addEventListener('touchmove', (e) => {
+        if (!isSwiping) return;
+        currentX = e.touches[0].clientX;
+        const diff = currentX - startX;
+        if (Math.abs(diff) > 10) moved = true;
+        if (diff < 0 && diff > -96) {
+          content.style.transform = `translateX(${diff}px)`;
+        }
+      }, { passive: true });
+
+      content.addEventListener('touchend', () => {
+        if (!isSwiping) return;
+        isSwiping = false;
+        const diff = currentX - startX;
+        content.style.transition = 'transform 0.2s ease';
+        if (diff < -48) {
+          content.style.transform = 'translateX(-96px)';
+        } else {
+          content.style.transform = 'translateX(0)';
+        }
+        setTimeout(() => content.style.transition = '', 200);
+      });
+
+      card._moved = () => moved;
       return card;
     }
 
-    let isCardSwiping = false;
-
     window.handleCardClick = function(event, id) {
-      if (isCardSwiping) return;
-      if (event.target.closest('button, a')) return;
-      
-      const swipeEl = event.currentTarget;
-      if (swipeEl && swipeEl.dataset.open === 'true') {
-        swipeEl.style.transform = 'translateX(0)';
-        swipeEl.dataset.open = 'false';
-        return;
-      }
+      const card = event.currentTarget.parentElement;
+      if (card && card._moved && card._moved()) return;
       window.openDetailModal(id);
     };
 
@@ -984,24 +1079,21 @@
       const content = document.getElementById('detail-content');
 
       const color = typeColors[p.type] || typeColors['未分類'];
-      const badge = document.getElementById('detail-type-badge');
-      badge.textContent = p.type || '未分類';
-      badge.style.backgroundColor = color;
+      const typeBadge = document.getElementById('detail-type-badge');
+      typeBadge.textContent = p.type;
+      typeBadge.style.backgroundColor = color;
 
-      document.getElementById('detail-name').textContent = p.name || '名称未設定';
-      
-      const flagBadge = document.getElementById('detail-flag-badge');
-      if (p.flagged) {
-        flagBadge.classList.remove('hidden');
-      } else {
-        flagBadge.classList.add('hidden');
-      }
+      document.getElementById('detail-title').textContent = p.name;
+      document.getElementById('detail-created').textContent = formatDisplayDate(p.createdAt, true);
 
-      let dateHtml = `<span><i class="fa-regular fa-calendar mr-1"></i>作成: ${formatDisplayDate(p.createdAt, true)}</span>`;
+      const updContainer = document.getElementById('detail-updated-container');
+      const updEl = document.getElementById('detail-updated');
       if (p.updatedAt && p.createdAt && p.updatedAt !== p.createdAt) {
-        dateHtml += `<span class="text-blue-600"><i class="fa-solid fa-clock-rotate-left mr-1"></i>更新: ${formatDisplayDate(p.updatedAt, true)}</span>`;
+        updEl.textContent = formatDisplayDate(p.updatedAt, true);
+        updContainer.classList.remove('hidden');
+      } else {
+        updContainer.classList.add('hidden');
       }
-      document.getElementById('detail-dates').innerHTML = dateHtml;
 
       const areaContainer = document.getElementById('detail-area-container');
       const areaEl = document.getElementById('detail-area');
@@ -1012,22 +1104,34 @@
         areaContainer.classList.add('hidden');
       }
 
+      // Photos
+      const photoContainer = document.getElementById('detail-photos-container');
+      const photoList = document.getElementById('detail-photos-list');
+      const photoCountEl = document.getElementById('detail-photo-count');
+      if (Array.isArray(p.photos) && p.photos.length > 0) {
+        photoCountEl.textContent = p.photos.length;
+        photoList.innerHTML = p.photos.map(src => `
+          <div class="relative aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-200 cursor-pointer shadow-sm group" onclick="window.openPhotoLightbox('${src}')">
+            <img src="${src}" class="w-full h-full object-cover">
+            <div class="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+              <i class="fa-solid fa-magnifying-glass-plus"></i>
+            </div>
+          </div>
+        `).join('');
+        photoContainer.classList.remove('hidden');
+      } else {
+        photoContainer.classList.add('hidden');
+        photoList.innerHTML = '';
+      }
+
       document.getElementById('detail-address').textContent = p.address || '住所情報なし';
       document.getElementById('detail-memo').textContent = p.memo || 'メモの登録はありません';
 
-      const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
-      document.getElementById('detail-route-btn').setAttribute('href', routeUrl);
-
-      document.getElementById('detail-map-btn').onclick = () => {
-        window.closeDetailModal();
-        window.moveToProperty(p.lat, p.lng);
-      };
-
+      document.getElementById('detail-route-btn').href = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
       document.getElementById('detail-edit-btn').onclick = () => {
         window.closeDetailModal();
         window.openFormModal(p.id);
       };
-
       document.getElementById('detail-delete-btn').onclick = () => {
         window.closeDetailModal();
         window.moveToTrash(p.id);
@@ -1045,13 +1149,178 @@
       const content = document.getElementById('detail-content');
       modal.classList.add('opacity-0');
       content.classList.add('translate-y-full');
-      setTimeout(() => { modal.classList.add('hidden'); }, 300);
+      setTimeout(() => modal.classList.add('hidden'), 300);
+    };
+
+    function renderTrash() {
+      const container = document.getElementById('trash-list');
+      const badge = document.getElementById('trash-count-badge');
+      if (!container) return;
+
+      const deletedProps = properties.filter(p => !!p.isDeleted);
+      deletedProps.sort((a, b) => timeOf(b) - timeOf(a));
+      badge.textContent = `${deletedProps.length}件`;
+
+      if (deletedProps.length === 0) {
+        container.innerHTML = `
+          <div class="p-8 text-center text-gray-400 space-y-2">
+            <i class="fa-solid fa-trash-can text-4xl text-gray-300"></i>
+            <p class="text-xs font-bold">ゴミ箱は空です</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = '';
+      deletedProps.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'p-3.5 bg-white border-b border-gray-100 flex items-center justify-between text-xs';
+        item.innerHTML = `
+          <div class="flex-1 min-w-0 pr-2">
+            <h4 class="font-bold text-gray-800 text-sm truncate">${esc(p.name)}</h4>
+            <p class="text-[11px] text-gray-400 truncate mt-0.5">${esc(p.address)}</p>
+            <p class="text-[10px] text-red-500 mt-1"><i class="fa-solid fa-trash-can mr-1"></i>削除日: ${formatDisplayDate(p.deletedAt, false)}</p>
+          </div>
+          <div class="flex items-center space-x-1.5 shrink-0">
+            <button onclick="window.restoreProperty('${p.id}')" class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-xl text-xs transition-colors">
+              復元
+            </button>
+            <button onclick="window.permanentlyDelete('${p.id}')" class="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs transition-colors">
+              完全削除
+            </button>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function compressImage(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxDim = 800;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > maxDim) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              }
+            } else {
+              if (height > maxDim) {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            resolve(compressedBase64);
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    window.handlePhotoSelect = async function(event) {
+      const files = Array.from(event.target.files || []);
+      if (!files.length) return;
+
+      const remainingSlots = 3 - currentFormPhotos.length;
+      if (remainingSlots <= 0) {
+        customAlert('写真は最大3枚までです。');
+        event.target.value = '';
+        return;
+      }
+
+      const filesToProcess = files.slice(0, remainingSlots);
+      const spinner = document.getElementById('photo-loading-spinner');
+      if (spinner) spinner.classList.remove('hidden');
+
+      try {
+        for (const file of filesToProcess) {
+          if (!file.type.startsWith('image/')) continue;
+          const compressed = await compressImage(file);
+          if (currentFormPhotos.length < 3) {
+            currentFormPhotos.push(compressed);
+          }
+        }
+      } catch (err) {
+        console.error('Photo compress failed', err);
+        customAlert('写真の読み込みに失敗しました。');
+      } finally {
+        if (spinner) spinner.classList.add('hidden');
+        event.target.value = '';
+        renderFormPhotos();
+      }
+    };
+
+    function renderFormPhotos() {
+      const preview = document.getElementById('form-photos-preview');
+      const countLabel = document.getElementById('form-photo-count-label');
+      if (countLabel) countLabel.textContent = `${currentFormPhotos.length} / 3`;
+      if (!preview) return;
+
+      let html = '';
+      currentFormPhotos.forEach((src, idx) => {
+        html += `
+          <div class="relative aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+            <img src="${src}" class="w-full h-full object-cover">
+            <button type="button" onclick="window.removeFormPhoto(${idx})" class="absolute top-1 right-1 w-6 h-6 bg-red-600/80 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs shadow transition-colors">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        `;
+      });
+
+      if (currentFormPhotos.length < 3) {
+        html += `
+          <button type="button" onclick="document.getElementById('form-photo-input').click()" class="aspect-square rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 flex flex-col items-center justify-center text-gray-400 hover:text-blue-600 transition-colors bg-gray-50">
+            <i class="fa-solid fa-camera text-xl mb-1"></i>
+            <span class="text-[10px] font-bold">写真追加</span>
+          </button>
+        `;
+      }
+      preview.innerHTML = html;
+    }
+
+    window.removeFormPhoto = function(index) {
+      currentFormPhotos.splice(index, 1);
+      renderFormPhotos();
+    };
+
+    window.openPhotoLightbox = function(src) {
+      const lightbox = document.getElementById('photo-lightbox');
+      const img = document.getElementById('lightbox-img');
+      img.src = src;
+      lightbox.classList.remove('hidden');
+      setTimeout(() => lightbox.classList.remove('opacity-0'), 10);
+    };
+
+    window.closePhotoLightbox = function() {
+      const lightbox = document.getElementById('photo-lightbox');
+      lightbox.classList.add('opacity-0');
+      setTimeout(() => {
+        lightbox.classList.add('hidden');
+        document.getElementById('lightbox-img').src = '';
+      }, 300);
     };
 
     window.openFormModal = function(id = null) {
       const modal = document.getElementById('form-modal');
       const content = document.getElementById('form-content');
-      
+
       if (id) {
         const p = properties.find(x => x.id === id);
         if (p) {
@@ -1060,25 +1329,28 @@
           document.getElementById('form-lat').value = p.lat;
           document.getElementById('form-lng').value = p.lng;
           document.getElementById('form-name').value = p.name || '';
-          document.getElementById('form-address').value = p.address || '';
-          document.getElementById('form-memo').value = p.memo || '';
           document.getElementById('form-type').value = p.type || '未分類';
           document.getElementById('form-area').value = p.area || '';
+          document.getElementById('form-address').value = p.address || '';
+          document.getElementById('form-memo').value = p.memo || '';
+          currentFormPhotos = Array.isArray(p.photos) ? [...p.photos] : [];
         }
       } else {
         document.getElementById('modal-title').textContent = '新しく登録';
         document.getElementById('form-id').value = '';
-        document.getElementById('form-lat').value = targetMarker.getLatLng().lat;
-        document.getElementById('form-lng').value = targetMarker.getLatLng().lng;
+        const curLatLng = targetMarker ? targetMarker.getLatLng() : { lat: currentLocation.lat, lng: currentLocation.lng };
+        document.getElementById('form-lat').value = curLatLng.lat;
+        document.getElementById('form-lng').value = curLatLng.lng;
         document.getElementById('form-name').value = '';
-        // 「現在地を取得中...」をそのまま保存しないよう安全ガード
-        const currentAddrText = currentLocation.address && currentLocation.address !== '現在地を取得中...' ? currentLocation.address : '';
-        document.getElementById('form-address').value = currentAddrText;
-        document.getElementById('form-memo').value = '';
         document.getElementById('form-type').value = 'ロードサイド物件';
         document.getElementById('form-area').value = '';
+        const curAddr = currentLocation.address && currentLocation.address !== '住所を取得中...' ? currentLocation.address : '';
+        document.getElementById('form-address').value = curAddr;
+        document.getElementById('form-memo').value = '';
+        currentFormPhotos = [];
       }
 
+      renderFormPhotos();
       modal.classList.remove('hidden');
       setTimeout(() => {
         modal.classList.remove('opacity-0');
@@ -1091,47 +1363,42 @@
       const content = document.getElementById('form-content');
       modal.classList.add('opacity-0');
       content.classList.add('translate-y-full');
-      setTimeout(() => { modal.classList.add('hidden'); }, 300);
+      setTimeout(() => modal.classList.add('hidden'), 300);
     };
 
-    window.saveProperty = function() {
-      if (isSavingLock) return;
-      isSavingLock = true;
-      const saveBtn = document.getElementById('save-submit-btn');
-      if (saveBtn) saveBtn.disabled = true;
+    window.saveProperty = function(e) {
+      e.preventDefault();
+      if (isSaving) return;
+      isSaving = true;
 
-      setTimeout(() => {
-        isSavingLock = false;
-        if (saveBtn) saveBtn.disabled = false;
-      }, 500);
-
-      const id = document.getElementById('form-id').value;
-      let name = document.getElementById('form-name').value.trim();
-      const type = document.getElementById('form-type').value;
-      const area = document.getElementById('form-area').value.trim();
-      let address = document.getElementById('form-address').value.trim();
-      const memo = document.getElementById('form-memo').value.trim();
-      const lat = parseFloat(document.getElementById('form-lat').value);
-      const lng = parseFloat(document.getElementById('form-lng').value);
-
-      if (address === '現在地を取得中...') {
-        address = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-      }
+      const submitBtn = document.getElementById('form-submit-btn');
+      if (submitBtn) submitBtn.disabled = true;
 
       const now = new Date();
       const nowIso = now.toISOString();
-      const defaultName = formatDisplayDate(nowIso, true);
 
-      if (!name) name = defaultName;
+      const id = document.getElementById('form-id').value;
+      const lat = parseFloat(document.getElementById('form-lat').value);
+      const lng = parseFloat(document.getElementById('form-lng').value);
+      let name = document.getElementById('form-name').value.trim();
+      const type = document.getElementById('form-type').value;
+      const area = document.getElementById('form-area').value.trim();
+      const address = document.getElementById('form-address').value.trim();
+      const memo = document.getElementById('form-memo').value.trim();
+
+      // Fallback name to formatted date if empty
+      if (!name) {
+        name = formatDisplayDate(nowIso, false);
+      }
 
       if (id) {
         const idx = properties.findIndex(p => p.id === id);
         if (idx !== -1) {
           const prev = properties[idx];
-          properties[idx] = { 
-            ...prev, 
-            name, type, area, address, memo, lat, lng,
-            createdAt: prev.createdAt || nowIso,
+          properties[idx] = {
+            ...prev,
+            lat, lng, name, type, area, address, memo,
+            photos: [...currentFormPhotos],
             updatedAt: nowIso,
             deletedAt: null,
             isDeleted: false
@@ -1140,405 +1407,315 @@
       } else {
         properties.push({
           id: generateUUID(),
-          lat, lng,
-          name, type, area, address, memo,
+          lat, lng, name, type, area, address, memo,
           flagged: false,
+          photos: [...currentFormPhotos],
           createdAt: nowIso,
           updatedAt: nowIso,
           deletedAt: null,
           isDeleted: false
         });
       }
-      
+
       persist();
-      renderList();
       renderMapMarkers();
-      updateTrashBadge();
-      closeFormModal();
+      renderList();
+      renderTrash();
+      window.closeFormModal();
+
+      setTimeout(() => {
+        isSaving = false;
+        if (submitBtn) submitBtn.disabled = false;
+      }, 500);
     };
 
-    function initSwipeLogic() {
-      let touchStartX = 0;
-      let currentSwipeContent = null;
-      let currentTranslateX = 0;
-      const threshold = -40;
-      const maxSwipe = -96;
-
-      function handleDragStart(e) {
-        if (e.target.closest('button, a')) return;
-        
-        isCardSwiping = false;
-        const swipeEl = e.target.closest('.swipe-content');
-        
-        document.querySelectorAll('.swipe-content').forEach(el => {
-          if (el !== swipeEl && el.dataset.open === 'true') {
-            el.style.transform = 'translateX(0)';
-            el.dataset.open = 'false';
-          }
-        });
-
-        if (!swipeEl) return;
-        
-        touchStartX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
-        currentSwipeContent = swipeEl;
-        
-        currentSwipeContent.style.transition = 'none';
-        const match = currentSwipeContent.style.transform.match(/translateX\(([-\d.]+)px\)/);
-        currentTranslateX = match ? parseFloat(match[1]) : 0;
-      }
-
-      function handleDragMove(e) {
-        if (!currentSwipeContent) return;
-        
-        const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
-        const deltaX = clientX - touchStartX;
-
-        if (Math.abs(deltaX) > 10) {
-          isCardSwiping = true;
-        }
-
-        if (Math.abs(deltaX) < 10 && e.type === 'touchmove') return;
-
-        let newX = currentTranslateX + deltaX;
-        if (newX > 0) newX = 0; 
-        if (newX < maxSwipe) newX = maxSwipe - (Math.abs(newX - maxSwipe) * 0.2); 
-
-        currentSwipeContent.style.transform = `translateX(${newX}px)`;
-        e.preventDefault(); 
-      }
-
-      function handleDragEnd() {
-        if (!currentSwipeContent) return;
-        currentSwipeContent.style.transition = 'transform 0.2s ease-out';
-        const match = currentSwipeContent.style.transform.match(/translateX\(([-\d.]+)px\)/);
-        const currentX = match ? parseFloat(match[1]) : 0;
-
-        if (currentX < threshold) {
-          currentSwipeContent.style.transform = `translateX(${maxSwipe}px)`;
-          currentSwipeContent.dataset.open = 'true';
-        } else {
-          currentSwipeContent.style.transform = 'translateX(0)';
-          currentSwipeContent.dataset.open = 'false';
-        }
-        
-        setTimeout(() => {
-          currentSwipeContent = null;
-          isCardSwiping = false;
-        }, 100);
-      }
-
-      const listContainer = document.getElementById('view-list');
-      if (listContainer._swipeInitialized) return; 
-      
-      listContainer.addEventListener('touchstart', handleDragStart, { passive: true });
-      listContainer.addEventListener('touchmove', handleDragMove, { passive: false });
-      listContainer.addEventListener('touchend', handleDragEnd);
-      listContainer._swipeInitialized = true;
-    }
-
+    // Actions
     window.toggleFlag = function(id) {
-      const idx = properties.findIndex(p => p.id === id);
-      if (idx !== -1) {
-        properties[idx].flagged = !properties[idx].flagged;
-        properties[idx].updatedAt = new Date().toISOString();
+      const p = properties.find(x => x.id === id);
+      if (p) {
+        p.flagged = !p.flagged;
+        p.updatedAt = new Date().toISOString();
         persist();
-        renderList();
         renderMapMarkers();
+        renderList();
       }
-    };
-
-    window.moveToProperty = function(lat, lng) {
-      window.switchMainView('map');
-      map.flyTo([lat, lng], 17, {duration: 0.5});
     };
 
     window.moveToTrash = function(id) {
-      const idx = properties.findIndex(p => p.id === id);
-      if (idx !== -1) {
-        const nowIso = new Date().toISOString();
-        properties[idx].deletedAt = nowIso;
-        properties[idx].updatedAt = nowIso;
-        properties[idx].isDeleted = true;
+      const p = properties.find(x => x.id === id);
+      if (p) {
+        p.deletedAt = new Date().toISOString();
+        p.isDeleted = true;
         persist();
-        renderList();
         renderMapMarkers();
-        updateTrashBadge();
-        if (map) map.closePopup();
+        renderList();
+        renderTrash();
       }
     };
 
-    function updateTrashBadge() {
-      const badge = document.getElementById('trash-badge');
-      const count = properties.filter(p => p.deletedAt || p.isDeleted).length;
-      if (!badge) return;
-      if (count > 0) {
-        badge.textContent = count > 99 ? '99+' : count;
-        badge.classList.remove('hidden');
-      } else {
-        badge.classList.add('hidden');
+    window.restoreProperty = function(id) {
+      const p = properties.find(x => x.id === id);
+      if (p) {
+        p.deletedAt = null;
+        p.isDeleted = false;
+        p.updatedAt = new Date().toISOString();
+        persist();
+        renderMapMarkers();
+        renderList();
+        renderTrash();
       }
+    };
+
+    window.permanentlyDelete = async function(id) {
+      const ok = await customConfirm('この物件データを完全に消去しますか？\n（復元できなくなります）');
+      if (!ok) return;
+
+      properties = properties.filter(p => p.id !== id);
+      persist();
+      renderTrash();
+    };
+
+    window.emptyTrash = async function() {
+      const deletedProps = properties.filter(p => !!p.isDeleted);
+      if (deletedProps.length === 0) {
+        return customAlert('ゴミ箱はすでに空です。');
+      }
+
+      const ok = await customConfirm(`ゴミ箱内の全${deletedProps.length}件を完全に消去しますか？`);
+      if (!ok) return;
+
+      properties = properties.filter(p => !p.isDeleted);
+      persist();
+      renderTrash();
+    };
+
+    window.moveToProperty = function(lat, lng) {
+      window.switchTab('map');
+      setTimeout(() => {
+        map.setView([lat, lng], 17);
+        targetMarker.setLatLng([lat, lng]);
+        reverseGeocode(lat, lng);
+      }, 100);
+    };
+
+    window.toggleDataMenu = function() {
+      const modal = document.getElementById('data-menu-modal');
+      const backdrop = document.getElementById('data-menu-backdrop');
+      const isHidden = modal.classList.contains('hidden');
+
+      if (isHidden) {
+        // Show last imported info
+        const lastInfo = localStorage.getItem(LAST_IMPORT_KEY);
+        const banner = document.getElementById('last-imported-banner');
+        const fnameEl = document.getElementById('last-imported-filename');
+        if (lastInfo) {
+          try {
+            const parsed = JSON.parse(lastInfo);
+            fnameEl.textContent = parsed.filename || '不明';
+            banner.classList.remove('hidden');
+          } catch(e) { banner.classList.add('hidden'); }
+        } else {
+          banner.classList.add('hidden');
+        }
+
+        backdrop.classList.remove('hidden');
+        modal.classList.remove('hidden');
+      } else {
+        backdrop.classList.add('hidden');
+        modal.classList.add('hidden');
+      }
+    };
+
+    function triggerFileDownload(filename, content, mime) {
+      const file = new File([content], filename, { type: mime, lastModified: Date.now() });
+      const url = URL.createObjectURL(file);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 500);
     }
 
-    window.toggleSettingsMenu = function() {
-      const menu = document.getElementById('settings-menu');
-      menu.classList.toggle('hidden');
-    };
-    
-    document.addEventListener('click', function(e) {
-      if (!e.target.closest('#settings-menu') && !e.target.closest('#nav-settings')) {
-        document.getElementById('settings-menu').classList.add('hidden');
-      }
-      if (!e.target.closest('#layer-menu') && !e.target.closest('button[onclick="window.toggleLayerMenu()"]')) {
-        document.getElementById('layer-menu').classList.add('hidden');
-      }
-    });
+    window.exportBackup = function(type) {
+      const activeCount = properties.filter(p => !p.isDeleted).length;
+      const now = new Date();
+      const Y = now.getFullYear();
+      const M = String(now.getMonth() + 1).padStart(2, '0');
+      const D = String(now.getDate()).padStart(2, '0');
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const timeStampStr = `${Y}${M}${D}-${hh}${mm}_${activeCount}件`;
 
-    window.showTrashModal = function() {
-      document.getElementById('settings-menu').classList.add('hidden');
-      const modal = document.getElementById('trash-modal');
-      const content = document.getElementById('trash-content');
-      renderTrashList();
-      modal.classList.remove('hidden');
-      setTimeout(() => {
-        modal.classList.remove('opacity-0');
-        content.classList.remove('scale-95');
-      }, 10);
-    };
-    
-    window.hideTrashModal = function() {
-      const modal = document.getElementById('trash-modal');
-      const content = document.getElementById('trash-content');
-      modal.classList.add('opacity-0');
-      content.classList.add('scale-95');
-      setTimeout(() => modal.classList.add('hidden'), 300);
+      if (type === 'json') {
+        const payload = {
+          app: 'BukkenMemo',
+          version: '2.0',
+          exportedAt: now.toISOString(),
+          totalRecords: properties.length,
+          activeRecords: activeCount,
+          records: properties
+        };
+        const filename = `BukkenMemo_backup_${timeStampStr}.json`;
+        triggerFileDownload(filename, JSON.stringify(payload, null, 2), 'application/json');
+        window.toggleDataMenu();
+      } else if (type === 'csv') {
+        const activeProps = properties.filter(p => !p.isDeleted);
+        if (activeProps.length === 0) {
+          return customAlert('エクスポート対象の有効な物件データがありません。');
+        }
+
+        const headers = ['ID', '作成日時', '最終更新日時', '物件名', '種別', '面積(坪)', '写真枚数', '住所', '緯度', '経度', 'メモ', 'フラッグ'];
+        const rows = activeProps.map(p => [
+          `"${p.id || ''}"`,
+          `"${formatDisplayDate(p.createdAt, true)}"`,
+          `"${formatDisplayDate(p.updatedAt, true)}"`,
+          `"${(p.name || '').replace(/"/g, '""')}"`,
+          `"${p.type || ''}"`,
+          `"${p.area || ''}"`,
+          `"${(p.photos || []).length}"`,
+          `"${(p.address || '').replace(/"/g, '""')}"`,
+          `"${p.lat}"`,
+          `"${p.lng}"`,
+          `"${(p.memo || '').replace(/"/g, '""')}"`,
+          `"${p.flagged ? 'TRUE' : 'FALSE'}"`
+        ]);
+
+        const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(r => r.join(','))].join("\r\n");
+        const filename = `BukkenMemo_backup_${timeStampStr}.csv`;
+        triggerFileDownload(filename, csvContent, 'text/csv;charset=utf-8;');
+        window.toggleDataMenu();
+      }
     };
 
-    window.showGuideModal = function() {
+    window.handleImportFile = function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      // 0-byte or placeholder detection (iOS Drive sync error)
+      if (file.size === 0) {
+        customAlert(
+          '選択されたファイルは中身が空（0バイト）です。\n\n' +
+          '【iPhoneをご利用の場合】\n' +
+          'Googleドライブの未ダウンロード状態（赤い進入禁止アイコン）が原因です。iPhoneの「ファイル」アプリを開き、ファイルを一度タップしてダウンロードを完了させてから再度お試しください。',
+          'ファイル読み込みエラー'
+        );
+        event.target.value = '';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const raw = JSON.parse(e.target.result);
+          const incomingList = Array.isArray(raw) ? raw : (raw.records || []);
+          if (!Array.isArray(incomingList)) throw new Error('不正なJSON形式です');
+
+          // Check if same file was recently imported
+          const lastImportRaw = localStorage.getItem(LAST_IMPORT_KEY);
+          if (lastImportRaw) {
+            try {
+              const lastImport = JSON.parse(lastImportRaw);
+              if (lastImport.filename === file.name) {
+                const proceed = await customConfirm(
+                  `このファイル（${file.name}）は既に取り込み済みです。\n再度取り込んで統合しますか？`
+                );
+                if (!proceed) {
+                  event.target.value = '';
+                  return;
+                }
+              }
+            } catch(e) {}
+          }
+
+          const nowIso = new Date().toISOString();
+          const { stats, records } = mergeRecords(properties, incomingList, nowIso);
+          properties = records;
+          persist();
+
+          // Store last import record
+          localStorage.setItem(LAST_IMPORT_KEY, JSON.stringify({
+            filename: file.name,
+            timestamp: nowIso
+          }));
+
+          renderMapMarkers();
+          renderList();
+          renderTrash();
+          window.toggleDataMenu();
+
+          await customAlert(
+            `データを取り込みました。\n\n` +
+            `・新規追加: ${stats.added}件\n` +
+            `・更新: ${stats.updated}件\n` +
+            `・削除反映: ${stats.deleted}件\n` +
+            `・変更なし: ${stats.unchanged}件`,
+            '取込完了'
+          );
+        } catch (err) {
+          console.error('Import error', err);
+          customAlert('ファイルの読み込みに失敗しました。有効なBukkenMemoバックアップJSONを選択してください。');
+        } finally {
+          event.target.value = '';
+        }
+      };
+      reader.readAsText(file);
+    };
+
+    window.switchTab = function(tab) {
+      document.getElementById('view-map').classList.toggle('hidden', tab !== 'map');
+      document.getElementById('view-list').classList.toggle('hidden', tab !== 'list');
+      document.getElementById('view-trash').classList.toggle('hidden', tab !== 'trash');
+
+      const tabs = ['map', 'list', 'trash'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`nav-btn-${t}`);
+        if (btn) {
+          if (t === tab) {
+            btn.className = 'flex flex-col items-center text-blue-600 py-1 px-3';
+          } else {
+            btn.className = 'flex flex-col items-center text-gray-400 py-1 px-3';
+          }
+        }
+      });
+
+      if (tab === 'map') {
+        setTimeout(() => {
+          if (map) map.invalidateSize();
+        }, 100);
+      } else if (tab === 'list') {
+        renderList();
+      } else if (tab === 'trash') {
+        renderTrash();
+      }
+    };
+
+    window.openGuideModal = function() {
       const modal = document.getElementById('guide-modal');
       modal.classList.remove('hidden');
       setTimeout(() => modal.classList.remove('opacity-0'), 10);
     };
 
-    window.hideGuideModal = function() {
+    window.closeGuideModal = function() {
       const modal = document.getElementById('guide-modal');
       modal.classList.add('opacity-0');
-      setTimeout(() => modal.classList.add('hidden'), 300);
+      setTimeout(() => modal.classList.add('hidden'), 200);
     };
 
-    function renderTrashList() {
-      const listEl = document.getElementById('trash-list');
-      const deletedProps = properties.filter(p => p.deletedAt || p.isDeleted);
-      const countLabel = document.getElementById('trash-count-label');
-      if (countLabel) countLabel.textContent = `${deletedProps.length}件の削除済みアイテム`;
-      listEl.innerHTML = '';
+    // App Initialization
+    window.onload = function() {
+      loadInitialData();
+      initMap();
+      renderList();
+      renderTrash();
 
-      if (deletedProps.length === 0) {
-        listEl.innerHTML = '<div class="text-center py-10 text-gray-400 text-sm">ゴミ箱は空です</div>';
-        return;
+      // Request persistent storage if supported
+      if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persist().catch(() => {});
       }
-
-      deletedProps.sort((a, b) => timeOf(b) - timeOf(a)).forEach(p => {
-        const div = document.createElement('div');
-        div.className = 'bg-white p-4 rounded-xl mb-3 flex justify-between items-center shadow-sm border border-gray-100';
-        div.innerHTML = `
-          <div class="flex-1 min-w-0 pr-4">
-             <h4 class="font-bold text-gray-500 text-sm truncate line-through mb-1">${esc(p.name)}</h4>
-             <p class="text-[10px] text-gray-400 truncate">${esc(p.address)}</p>
-             <p class="text-[9px] text-gray-400 mt-1">削除: ${formatDisplayDate(p.deletedAt || p.updatedAt, true)}</p>
-          </div>
-          <div class="flex space-x-2 flex-shrink-0">
-             <button onclick="window.restoreProperty('${p.id}')" class="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl shadow-sm flex items-center justify-center hover:bg-blue-100 transition-colors" title="復元"><i class="fa-solid fa-arrow-rotate-left"></i></button>
-             <button onclick="window.permanentlyDeleteProperty('${p.id}')" class="w-10 h-10 bg-red-50 text-red-500 rounded-xl shadow-sm flex items-center justify-center hover:bg-red-100 transition-colors" title="完全削除"><i class="fa-solid fa-trash"></i></button>
-          </div>
-        `;
-        listEl.appendChild(div);
-      });
-    }
-
-    window.restoreProperty = function(id) {
-      const idx = properties.findIndex(p => p.id === id);
-      if (idx !== -1) {
-        const nowIso = new Date().toISOString();
-        properties[idx].deletedAt = null;
-        properties[idx].updatedAt = nowIso;
-        properties[idx].isDeleted = false;
-        persist();
-        renderTrashList();
-        renderList();
-        renderMapMarkers();
-        updateTrashBadge();
-      }
-    };
-
-    window.permanentlyDeleteProperty = function(id) {
-      customConfirm('この端末から完全に削除しますか？\n（古いバックアップを取り込まない限り復元できません）', () => {
-        properties = properties.filter(p => p.id !== id);
-        persist();
-        renderTrashList();
-        updateTrashBadge();
-      });
-    };
-
-    // FIX: 修正版 emptyTrash ロジック（全件がゴミ箱にある場合でも正常に削除可能）
-    window.emptyTrash = function() {
-      const deletedCount = properties.filter(p => p.deletedAt || p.isDeleted).length;
-      if (deletedCount === 0) return;
-      customConfirm(`ゴミ箱の${deletedCount}件をすべて完全削除しますか？`, () => {
-        properties = properties.filter(p => !p.deletedAt && !p.isDeleted);
-        persist();
-        renderTrashList();
-        updateTrashBadge();
-      });
-    };
-
-    window.exportData = async function(exportType) {
-      document.getElementById('settings-menu').classList.add('hidden');
-      
-      // 全レコード（墓標レコードを含む）を書き出すことで他端末へ削除も伝播可能
-      if (properties.length === 0) return customAlert('出力するデータがありません。');
-      
-      let content, mimeType, filename, fileExt, description;
-      
-      if (exportType === 'json') {
-        const envelope = {
-          app: 'BukkenMemo',
-          schemaVersion: 2,
-          exportedAt: new Date().toISOString(),
-          device: navigator.userAgent.includes('iPhone') ? 'iOS' : 'Desktop/Other',
-          records: properties
-        };
-        content = JSON.stringify(envelope, null, 2);
-        mimeType = 'application/json';
-        filename = 'BukkenMemo_backup.json';
-        fileExt = '.json';
-        description = 'BukkenMemo JSON バックアップ';
-      } else if (exportType === 'csv') {
-        const activeProps = properties.filter(p => !p.deletedAt && !p.isDeleted);
-        if (activeProps.length === 0) return customAlert('有効な物件データがありません。');
-        
-        const headers = ['ID', '作成日時', '最終更新日時', '物件名', '種別', '面積(坪)', '住所', '緯度', '経度', 'メモ', 'フラッグ'];
-        const rows = activeProps.map(p => [
-          `"${p.id || ''}"`, 
-          `"${formatDisplayDate(p.createdAt, true)}"`, 
-          `"${formatDisplayDate(p.updatedAt, true)}"`, 
-          `"${(p.name || '').replace(/"/g, '""')}"`, 
-          `"${p.type || ''}"`, 
-          `"${p.area || ''}"`, 
-          `"${(p.address || '').replace(/"/g, '""')}"`, 
-          `"${p.lat !== undefined ? p.lat : ''}"`, 
-          `"${p.lng !== undefined ? p.lng : ''}"`,
-          `"${(p.memo || '').replace(/"/g, '""')}"`, 
-          `"${p.flagged ? 'TRUE' : 'FALSE'}"`
-        ]);
-        // Excel対応: UTF-8 BOM付き + CRLF改行
-        content = "\uFEFF" + [headers.map(h => `"${h}"`), ...rows].map(e => e.join(",")).join("\r\n");
-        mimeType = 'text/csv;charset=utf-8;';
-        filename = 'BukkenMemo_backup.csv';
-        fileExt = '.csv';
-        description = 'BukkenMemo CSV バックアップ';
-      }
-
-      // 1. File System Access API対応ブラウザ (PC Chrome, Edge等)
-      if ('showSaveFilePicker' in window) {
-        try {
-          let handle = backupFileHandles[exportType];
-          
-          if (handle && handle.queryPermission) {
-            const perm = await handle.queryPermission({ mode: 'readwrite' });
-            if (perm !== 'granted') {
-              const req = await handle.requestPermission({ mode: 'readwrite' });
-              if (req !== 'granted') handle = null;
-            }
-          }
-
-          if (!handle) {
-            handle = await window.showSaveFilePicker({
-              suggestedName: filename,
-              types: [{
-                description: description,
-                accept: { [mimeType]: [fileExt] }
-              }]
-            });
-            backupFileHandles[exportType] = handle;
-          }
-
-          const writable = await handle.createWritable();
-          await writable.write(content);
-          await writable.close();
-
-          customAlert(`保存先に上書き保存しました。\n(${handle.name})`);
-          return;
-        } catch (err) {
-          if (err.name === 'AbortError') return;
-          console.warn('File System Access API failed, falling back to download:', err);
-          backupFileHandles[exportType] = null;
-        }
-      }
-
-      // 2. iOS Safari または 非対応環境のダウンロードフォールバック
-      try {
-        const file = new File([content], filename, {
-          type: mimeType,
-          lastModified: Date.now()
-        });
-        const url = URL.createObjectURL(file);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        
-        setTimeout(() => {
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }, 1000);
-      } catch (err) {
-        customAlert('バックアップの保存に失敗しました。');
-      }
-    };
-
-    window.importData = function(event) {
-      document.getElementById('settings-menu').classList.add('hidden');
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const parsed = JSON.parse(e.target.result);
-          // 新形式エンベロープ (records) も旧形式フラット配列も透過的にサポート
-          const incomingList = Array.isArray(parsed) ? parsed : (parsed.records && Array.isArray(parsed.records) ? parsed.records : null);
-
-          if (!incomingList) {
-            throw new Error('Invalid JSON schema');
-          }
-
-          const result = mergeRecords(properties, incomingList);
-          properties = result.records;
-          
-          persist();
-          renderList();
-          renderMapMarkers();
-          updateTrashBadge();
-
-          const s = result.stats;
-          customAlert(
-            `データ同期が完了しました。\n` +
-            `--------------------\n` +
-            `・新規追加: ${s.added} 件\n` +
-            `・内容更新: ${s.updated} 件\n` +
-            `・削除反映: ${s.deleted} 件\n` +
-            `・復元: ${s.restored} 件\n` +
-            `・変更なし: ${s.unchanged} 件`
-          );
-        } catch (err) {
-          console.error(err);
-          customAlert("ファイルの読み込みに失敗しました。\n正しいBukkenMemo JSONファイルを選択してください。");
-        }
-        event.target.value = ''; 
-      };
-      reader.readAsText(file);
     };
   </script>
 </body>
